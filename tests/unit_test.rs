@@ -12,30 +12,36 @@ fn test_string_context_variants() {
             protocol: Some("https".to_string()),
         },
         StringContext::Url { protocol: None },
-        StringContext::FilePath,
-        StringContext::RegistryKey,
-        StringContext::ApiCall {
-            library: Some("kernel32.dll".to_string()),
-        },
-        StringContext::ApiCall { library: None },
-        StringContext::IpAddress { version: Some(4) },
-        StringContext::IpAddress { version: Some(6) },
-        StringContext::IpAddress { version: None },
-        StringContext::Email,
-        StringContext::Credential {
-            credential_type: Some("password".to_string()),
-        },
-        StringContext::Credential {
-            credential_type: None,
+        StringContext::Path { path_type: "file".to_string() },
+        StringContext::Registry { hive: Some("HKLM".to_string()) },
+        StringContext::Import {
+            library: "kernel32.dll".to_string(),
         },
         StringContext::Import {
-            library: Some("msvcrt.dll".to_string()),
+            library: "msvcrt.dll".to_string(),
         },
-        StringContext::Import { library: None },
-        StringContext::CryptoKey,
-        StringContext::Base64Data,
-        StringContext::Command,
-        StringContext::Comment,
+        StringContext::Export {
+            symbol: "GetProcAddress".to_string(),
+        },
+        StringContext::Resource {
+            resource_type: "icon".to_string(),
+        },
+        StringContext::Section {
+            section_name: ".text".to_string(),
+        },
+        StringContext::Metadata {
+            field: "version".to_string(),
+        },
+        StringContext::Command {
+            command_type: "shell".to_string(),
+        },
+        StringContext::Other {
+            category: "unknown".to_string(),
+        },
+        StringContext::Registry { hive: None },
+        StringContext::Other {
+            category: "crypto".to_string(),
+        },
     ];
 
     let tracker = StringTracker::new();
