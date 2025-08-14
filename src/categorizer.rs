@@ -6,17 +6,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 // Pre-compiled regex patterns for performance
-static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap()
-});
+static IPV4_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap());
 
-static IPV6_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$").unwrap()
-});
+static IPV6_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$").unwrap());
 
-static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
-});
+static EMAIL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
 
 /// Represents a category that strings can belong to
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -156,9 +153,7 @@ impl DefaultCategorizer {
         // IP address categorization (IPv4 and IPv6)
         self.rules.push(CategoryRule {
             name: "ip_rule".to_string(),
-            matcher: Box::new(|s| {
-                IPV4_REGEX.is_match(s) || IPV6_REGEX.is_match(s)
-            }),
+            matcher: Box::new(|s| IPV4_REGEX.is_match(s) || IPV6_REGEX.is_match(s)),
             category: StringCategory {
                 name: "ip_address".to_string(),
                 parent: Some("network".to_string()),
@@ -170,9 +165,7 @@ impl DefaultCategorizer {
         // Email categorization
         self.rules.push(CategoryRule {
             name: "email_rule".to_string(),
-            matcher: Box::new(|s| {
-                s.contains('@') && s.contains('.') && EMAIL_REGEX.is_match(s)
-            }),
+            matcher: Box::new(|s| s.contains('@') && s.contains('.') && EMAIL_REGEX.is_match(s)),
             category: StringCategory {
                 name: "email".to_string(),
                 parent: Some("contact".to_string()),

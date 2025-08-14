@@ -150,7 +150,7 @@ impl StringAnalyzer for DefaultStringAnalyzer {
         // for ASCII strings and provides similar results
         let mut byte_counts = [0u32; 256];
         let bytes = s.as_bytes();
-        
+
         // Count byte frequencies
         for &byte in bytes {
             byte_counts[byte as usize] += 1;

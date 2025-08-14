@@ -165,7 +165,8 @@ impl StringTracker {
             let analysis = self.analyzer.analyze(value);
             let categories = self.categorizer.categorize(value);
 
-            let mut category_set = HashSet::with_capacity(categories.len() + analysis.categories.len() + 1);
+            let mut category_set =
+                HashSet::with_capacity(categories.len() + analysis.categories.len() + 1);
             category_set.insert(context_category.to_string());
             for cat in categories {
                 category_set.insert(cat.name);

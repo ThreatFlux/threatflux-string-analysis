@@ -195,7 +195,7 @@ fn test_string_details_structure() {
 
     // Verify details structure
     assert_eq!(details.value, test_string);
-    assert!(details.value.len() > 0);
+    assert!(!details.value.is_empty());
     assert_eq!(details.occurrences.len(), 1);
     assert_eq!(details.unique_files.len(), 1);
     assert!(!details.categories.is_empty());

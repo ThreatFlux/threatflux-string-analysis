@@ -322,7 +322,7 @@ fn test_related_strings() {
     let related = tracker.get_related_strings("kernel32.dll", 10);
 
     // Should find other DLLs from the same file
-    assert!(related.len() >= 1);
+    assert!(!related.is_empty());
 
     // Verify relationships (implementation specific logic)
     for (related_string, _score) in related {
@@ -371,10 +371,10 @@ fn test_statistics_accuracy() {
     assert!(stats.total_files_analyzed > 0);
 
     // Test length distribution
-    assert!(stats.length_distribution.len() > 0);
+    assert!(!stats.length_distribution.is_empty());
 
     // Test category distribution
-    assert!(stats.category_distribution.len() > 0);
+    assert!(!stats.category_distribution.is_empty());
 }
 
 #[test]
@@ -482,7 +482,7 @@ fn test_suspicious_detection_patterns() {
 
     // Should detect some suspicious strings
     assert!(suspicious_stats.total_unique_strings > 0);
-    assert!(suspicious_stats.suspicious_strings.len() > 0);
+    assert!(!suspicious_stats.suspicious_strings.is_empty());
 
     // Verify specific suspicious strings are detected
     for suspicious_string in &suspicious_stats.suspicious_strings {
