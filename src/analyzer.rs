@@ -109,8 +109,7 @@ impl StringAnalyzer for DefaultStringAnalyzer {
             suspicious_indicators.push(SuspiciousIndicator {
                 pattern_name: "high_entropy".to_string(),
                 description: format!(
-                    "High entropy ({:.2}) indicates possible encoding/encryption",
-                    entropy
+                    "High entropy ({entropy:.2}) indicates possible encoding/encryption"
                 ),
                 severity: 6,
                 matched_text: None,
