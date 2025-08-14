@@ -236,7 +236,9 @@ fn test_filtering_capabilities() {
         min_entropy: Some(2.0),
         ..Default::default()
     };
-    let _entropy_stats = tracker.get_statistics(Some(&entropy_filter));
+    let entropy_stats = tracker.get_statistics(Some(&entropy_filter));
+    // Check that entropy filtering works
+    assert!(entropy_stats.total_unique_strings < 100); // Should be reasonable number
 }
 
 #[test]
@@ -499,9 +501,8 @@ fn test_suspicious_detection_patterns() {
 fn test_performance_with_large_dataset() {
     let tracker = StringTracker::new();
 
-    // Use a modest dataset to exercise performance characteristics without
-    // making the test suite slow.
-    let num_strings = 100;
+    // Generate a large number of strings
+    let num_strings = 10000;
     let strings: Vec<String> = (0..num_strings)
         .map(|i| format!("test_string_{:06}", i))
         .collect();
@@ -523,10 +524,10 @@ fn test_performance_with_large_dataset() {
 
     let tracking_time = start_time.elapsed();
 
-    // Performance should be reasonable even on slower CI machines.
+    // Performance should be reasonable
     assert!(
-        tracking_time.as_secs() < 5,
-        "Tracking {} strings should complete in under 5 seconds",
+        tracking_time.as_secs() < 10,
+        "Tracking {} strings should complete in under 10 seconds",
         num_strings
     );
 
@@ -541,8 +542,8 @@ fn test_performance_with_large_dataset() {
     let search_time = search_start.elapsed();
 
     assert!(
-        search_time.as_millis() < 500,
-        "Search should complete in under 500ms"
+        search_time.as_millis() < 1000,
+        "Search should complete in under 1 second"
     );
     assert!(
         !search_results.is_empty(),
@@ -595,11 +596,9 @@ fn test_concurrent_access() {
 fn test_memory_management() {
     let tracker = StringTracker::new();
 
-    // Track and release many strings to test memory management. The dataset
-    // size is intentionally moderate to keep the test fast while still
-    // exercising allocation paths.
-    for iteration in 0..5 {
-        let strings: Vec<String> = (0..100)
+    // Track and release many strings to test memory management
+    for iteration in 0..100 {
+        let strings: Vec<String> = (0..1000)
             .map(|i| format!("iteration_{}_{}", iteration, i))
             .collect();
 

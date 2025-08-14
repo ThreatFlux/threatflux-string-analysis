@@ -189,7 +189,7 @@ impl StringTracker {
 
         entry.last_seen = Utc::now();
         entry.total_occurrences += 1;
-        entry.unique_files.insert(file_hash.to_string());
+        entry.unique_files.insert(file_path.to_string());
         entry.occurrences.push(occurrence);
 
         // Limit occurrences per string to prevent memory explosion
@@ -403,6 +403,11 @@ impl StringTracker {
 
     /// Search for strings matching a query
     pub fn search_strings(&self, query: &str, limit: usize) -> Vec<StringEntry> {
+        // Return empty results for empty queries
+        if query.trim().is_empty() {
+            return Vec::new();
+        }
+
         let entries = self.entries.lock().unwrap();
         let query_lower = query.to_lowercase();
 

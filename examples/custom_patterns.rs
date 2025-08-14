@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
     // Simulate analyzing a crypto-mining malware
     println!("Analyzing suspected crypto-mining malware...\n");
 
-    let suspicious_strings = vec![
+    let suspicious_strings = [
         "stratum+tcp://pool.minexmr.com:4444",
         "43QVqFAMNDhj3rFvjLqSqMBgkTQXvqCKheFCaWtmgBcE3XzM5vw52fQjcqBW6ixmBFjdMvDn3YSLBK7mfXg3bQTqmqFbPfC",
         "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8E0",

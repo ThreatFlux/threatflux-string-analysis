@@ -109,7 +109,9 @@ impl DefaultCategorizer {
         self.rules.push(CategoryRule {
             name: "library_rule".to_string(),
             matcher: Box::new(|s| {
-                s.ends_with(".dll") || s.ends_with(".so") || s.ends_with(".dylib")
+                s.ends_with(".dll") || s.ends_with(".so") || s.ends_with(".dylib") ||
+                s.contains(".so.") || // versioned shared libraries like libc.so.6
+                (s.ends_with(".dll") || s.contains("kernel32") || s.contains("ntdll"))
             }),
             category: StringCategory {
                 name: "library".to_string(),
@@ -136,18 +138,24 @@ impl DefaultCategorizer {
             priority: 80,
         });
 
-        // IP address categorization
+        // IP address categorization (IPv4 and IPv6)
         self.rules.push(CategoryRule {
             name: "ip_rule".to_string(),
             matcher: Box::new(|s| {
-                regex::Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-                    .unwrap()
-                    .is_match(s)
+                // IPv4 regex
+                let ipv4_regex =
+                    regex::Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap();
+                // IPv6 regex - simplified to catch common formats like ::1
+                let ipv6_regex =
+                    regex::Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$")
+                        .unwrap();
+
+                ipv4_regex.is_match(s) || ipv6_regex.is_match(s)
             }),
             category: StringCategory {
                 name: "ip_address".to_string(),
                 parent: Some("network".to_string()),
-                description: "IP address".to_string(),
+                description: "IP address (IPv4 or IPv6)".to_string(),
             },
             priority: 95,
         });
@@ -168,6 +176,27 @@ impl DefaultCategorizer {
                 description: "Email address".to_string(),
             },
             priority: 85,
+        });
+
+        // API call categorization
+        self.rules.push(CategoryRule {
+            name: "api_call_rule".to_string(),
+            matcher: Box::new(|s| {
+                // Common Windows API calls
+                s.contains("CreateProcess") || s.contains("VirtualAlloc") || s.contains("WriteProcessMemory") ||
+                s.contains("GetProcAddress") || s.contains("LoadLibrary") || s.contains("OpenProcess") ||
+                // Unix/Linux API calls
+                s == "malloc" || s == "calloc" || s == "realloc" || s == "free" ||
+                s == "fork" || s == "exec" || s == "open" || s == "read" || s == "write" ||
+                // Common API patterns
+                s.ends_with("A") && s.len() > 5 && s.chars().any(|c| c.is_uppercase()) // Windows API naming pattern
+            }),
+            category: StringCategory {
+                name: "api_call".to_string(),
+                parent: Some("system".to_string()),
+                description: "System API call".to_string(),
+            },
+            priority: 90,
         });
 
         // Sort rules by priority (descending)

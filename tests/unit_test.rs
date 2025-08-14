@@ -208,6 +208,9 @@ fn test_string_details_structure() {
     assert_eq!(occurrence.file_hash, "details_hash");
     assert_eq!(occurrence.tool_name, "details_tool");
     // Timestamp should be reasonable (not checking specific time due to test timing)
+
+    // Verify file association
+    assert!(details.unique_files.contains("/test/details"));
 }
 
 #[test]
@@ -239,12 +242,11 @@ fn test_search_edge_cases() {
             .unwrap();
     }
 
-    // Test empty search query (returns all strings)
+    // Test empty search query
     let empty_results = tracker.search_strings("", 10);
-    assert_eq!(
-        empty_results.len(),
-        test_strings.len(),
-        "Empty query should return all results"
+    assert!(
+        empty_results.is_empty(),
+        "Empty query should return no results"
     );
 
     // Test query with no matches
@@ -465,13 +467,13 @@ fn test_categorization_accuracy() {
         ("HKEY_LOCAL_MACHINE\\SOFTWARE", vec!["registry"]),
         ("HKEY_CURRENT_USER\\Control Panel", vec!["registry"]),
         ("kernel32.dll", vec!["library"]),
-        ("libc.so.6", vec!["library", "generic"]),
+        ("libc.so.6", vec!["library"]),
         ("192.168.1.1", vec!["ip_address"]),
-        ("::1", vec!["ip_address", "generic"]),
+        ("::1", vec!["ip_address"]),
         ("user@example.com", vec!["email"]),
         ("admin@domain.org", vec!["email"]),
-        ("CreateProcessA", vec!["api_call", "generic"]),
-        ("malloc", vec!["api_call", "generic"]),
+        ("CreateProcessA", vec!["api_call"]),
+        ("malloc", vec!["api_call"]),
     ];
 
     for (string, expected_categories) in categorization_tests {
