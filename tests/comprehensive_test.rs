@@ -1,6 +1,5 @@
 //! Comprehensive tests for threatflux-string-analysis
 
-use std::collections::HashMap;
 use threatflux_string_analysis::{StringContext, StringFilter, StringTracker};
 
 #[test]
@@ -83,7 +82,7 @@ fn test_duplicate_string_handling() {
     // Get details to verify all occurrences are tracked
     let details = tracker.get_string_details(test_string).unwrap();
     assert_eq!(details.occurrences.len(), 5);
-    assert_eq!(details.files.len(), 5);
+    assert_eq!(details.unique_files.len(), 5);
 }
 
 #[test]
@@ -123,20 +122,20 @@ fn test_context_preservation() {
                 protocol: Some("http".to_string()),
             },
         ),
-        ("/usr/bin/test", StringContext::FilePath),
-        ("HKEY_LOCAL_MACHINE", StringContext::RegistryKey),
+        ("/usr/bin/test", StringContext::Path { path_type: "executable".to_string() }),
+        ("HKEY_LOCAL_MACHINE", StringContext::Registry { hive: Some("HKLM".to_string()) }),
         (
             "CreateProcessA",
-            StringContext::ApiCall {
-                library: Some("kernel32.dll".to_string()),
+            StringContext::Import {
+                library: "kernel32.dll".to_string(),
             },
         ),
-        ("192.168.1.1", StringContext::IpAddress { version: Some(4) }),
-        ("test@example.com", StringContext::Email),
+        ("192.168.1.1", StringContext::Other { category: "ip_address".to_string() }),
+        ("test@example.com", StringContext::Other { category: "email".to_string() }),
         (
             "secret_password",
-            StringContext::Credential {
-                credential_type: Some("password".to_string()),
+            StringContext::Other {
+                category: "credential".to_string(),
             },
         ),
         (
@@ -258,7 +257,7 @@ fn test_search_functionality() {
     assert_eq!(exact_results[0].value, "banana");
 
     // Test case sensitivity (implementation dependent)
-    let case_results = tracker.search_strings("APPLE", 10);
+    let _case_results = tracker.search_strings("APPLE", 10);
     // Results depend on implementation - either case sensitive or insensitive
 
     // Test limit enforcement
@@ -281,7 +280,7 @@ fn test_related_strings() {
                 "malware_hash",
                 "pe_parser",
                 StringContext::Import {
-                    library: Some(string.to_string()),
+                    library: string.to_string(),
                 },
             )
             .unwrap();
@@ -299,16 +298,16 @@ fn test_related_strings() {
         .unwrap();
 
     // Find related strings
-    let related = tracker.find_related_strings("kernel32.dll", 10);
+    let related = tracker.get_related_strings("kernel32.dll", 10);
 
     // Should find other DLLs from the same file
     assert!(related.len() >= 1);
 
     // Verify relationships (implementation specific logic)
-    for related_string in related {
+    for (related_string, _score) in related {
         // Related strings should have some connection
-        let details = tracker.get_string_details(&related_string.value).unwrap();
-        assert!(!details.files.is_empty());
+        let details = tracker.get_string_details(&related_string).unwrap();
+        assert!(!details.unique_files.is_empty());
     }
 }
 
@@ -348,7 +347,7 @@ fn test_statistics_accuracy() {
     let stats = tracker.get_statistics(None);
     assert_eq!(stats.total_unique_strings, total_unique);
     assert_eq!(stats.total_occurrences, total_occurrences);
-    assert!(stats.total_files > 0);
+    assert!(stats.total_files_analyzed > 0);
 
     // Test length distribution
     assert!(stats.length_distribution.len() > 0);
