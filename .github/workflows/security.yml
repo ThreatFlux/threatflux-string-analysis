@@ -65,7 +65,6 @@ jobs:
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
         toolchain: stable
-      with:
         components: clippy
 
     - name: Cache cargo registry
@@ -180,7 +179,6 @@ jobs:
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
         toolchain: stable
-      with:
         components: clippy
 
     - name: Cache cargo registry
@@ -259,7 +257,6 @@ jobs:
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
         toolchain: nightly
-      with:
         components: miri
 
     - name: Cache cargo registry
@@ -291,7 +288,6 @@ jobs:
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
         toolchain: stable
-      with:
         components: rustfmt
 
     - name: Check code formatting
