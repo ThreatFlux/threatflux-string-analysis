@@ -12,8 +12,12 @@ fn test_string_context_variants() {
             protocol: Some("https".to_string()),
         },
         StringContext::Url { protocol: None },
-        StringContext::Path { path_type: "file".to_string() },
-        StringContext::Registry { hive: Some("HKLM".to_string()) },
+        StringContext::Path {
+            path_type: "file".to_string(),
+        },
+        StringContext::Registry {
+            hive: Some("HKLM".to_string()),
+        },
         StringContext::Import {
             library: "kernel32.dll".to_string(),
         },

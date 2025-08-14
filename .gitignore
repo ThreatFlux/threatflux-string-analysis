@@ -1,0 +1,54 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Cargo.lock should be ignored for library crates
+# (Include it for binary crates, ignore for libraries)
+Cargo.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Coverage reports
+tarpaulin-report.html
+coverage/
+*.profraw
+
+# Benchmark results
+criterion/
+bench_results/
+
+# Temporary files
+*.tmp
+*.temp
+.#*
+
+# Log files
+*.log
+
+# Package managers
+node_modules/
+*.npm
+
+# Backup files
+*.bak
+*.backup
+
+# Test artifacts
+test-results/

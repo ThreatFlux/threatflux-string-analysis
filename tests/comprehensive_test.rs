@@ -122,16 +122,36 @@ fn test_context_preservation() {
                 protocol: Some("http".to_string()),
             },
         ),
-        ("/usr/bin/test", StringContext::Path { path_type: "executable".to_string() }),
-        ("HKEY_LOCAL_MACHINE", StringContext::Registry { hive: Some("HKLM".to_string()) }),
+        (
+            "/usr/bin/test",
+            StringContext::Path {
+                path_type: "executable".to_string(),
+            },
+        ),
+        (
+            "HKEY_LOCAL_MACHINE",
+            StringContext::Registry {
+                hive: Some("HKLM".to_string()),
+            },
+        ),
         (
             "CreateProcessA",
             StringContext::Import {
                 library: "kernel32.dll".to_string(),
             },
         ),
-        ("192.168.1.1", StringContext::Other { category: "ip_address".to_string() }),
-        ("test@example.com", StringContext::Other { category: "email".to_string() }),
+        (
+            "192.168.1.1",
+            StringContext::Other {
+                category: "ip_address".to_string(),
+            },
+        ),
+        (
+            "test@example.com",
+            StringContext::Other {
+                category: "email".to_string(),
+            },
+        ),
         (
             "secret_password",
             StringContext::Other {
