@@ -24,11 +24,17 @@ pub struct Pattern {
 /// Serializable pattern definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatternDef {
+    /// Unique identifier for the pattern
     pub name: String,
+    /// Regular expression pattern string
     pub regex: String,
+    /// Category this pattern belongs to
     pub category: String,
+    /// Human-readable description of what this pattern matches
     pub description: String,
+    /// Whether matches should be flagged as suspicious
     pub is_suspicious: bool,
+    /// Severity level (0-10) if suspicious
     pub severity: u8,
 }
 

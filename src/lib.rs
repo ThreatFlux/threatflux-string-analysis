@@ -52,4 +52,5 @@ pub use tracker::{
 pub use types::*;
 
 // Version information
+/// Library version string
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

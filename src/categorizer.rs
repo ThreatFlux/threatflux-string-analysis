@@ -1,7 +1,22 @@
 //! String categorization functionality
 
 use crate::types::AnalysisResult;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+// Pre-compiled regex patterns for performance
+static IPV4_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap()
+});
+
+static IPV6_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$").unwrap()
+});
+
+static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
+});
 
 /// Represents a category that strings can belong to
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -142,15 +157,7 @@ impl DefaultCategorizer {
         self.rules.push(CategoryRule {
             name: "ip_rule".to_string(),
             matcher: Box::new(|s| {
-                // IPv4 regex
-                let ipv4_regex =
-                    regex::Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap();
-                // IPv6 regex - simplified to catch common formats like ::1
-                let ipv6_regex =
-                    regex::Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$")
-                        .unwrap();
-
-                ipv4_regex.is_match(s) || ipv6_regex.is_match(s)
+                IPV4_REGEX.is_match(s) || IPV6_REGEX.is_match(s)
             }),
             category: StringCategory {
                 name: "ip_address".to_string(),
@@ -164,11 +171,7 @@ impl DefaultCategorizer {
         self.rules.push(CategoryRule {
             name: "email_rule".to_string(),
             matcher: Box::new(|s| {
-                s.contains('@')
-                    && s.contains('.')
-                    && regex::Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-                        .unwrap()
-                        .is_match(s)
+                s.contains('@') && s.contains('.') && EMAIL_REGEX.is_match(s)
             }),
             category: StringCategory {
                 name: "email".to_string(),

@@ -146,17 +146,25 @@ impl StringAnalyzer for DefaultStringAnalyzer {
             return 0.0;
         }
 
-        let mut char_counts = HashMap::new();
-        for ch in s.chars() {
-            *char_counts.entry(ch).or_insert(0) += 1;
+        // Use a fixed-size array for byte-based entropy calculation which is more efficient
+        // for ASCII strings and provides similar results
+        let mut byte_counts = [0u32; 256];
+        let bytes = s.as_bytes();
+        
+        // Count byte frequencies
+        for &byte in bytes {
+            byte_counts[byte as usize] += 1;
         }
 
-        let len = s.len() as f64;
+        let len = bytes.len() as f64;
         let mut entropy = 0.0;
 
-        for count in char_counts.values() {
-            let probability = *count as f64 / len;
-            entropy -= probability * probability.log2();
+        // Calculate entropy based on byte frequencies
+        for &count in &byte_counts {
+            if count > 0 {
+                let probability = count as f64 / len;
+                entropy -= probability * probability.log2();
+            }
         }
 
         entropy

@@ -165,19 +165,18 @@ impl StringTracker {
             let analysis = self.analyzer.analyze(value);
             let categories = self.categorizer.categorize(value);
 
-            let mut category_set = HashSet::new();
+            let mut category_set = HashSet::with_capacity(categories.len() + analysis.categories.len() + 1);
             category_set.insert(context_category.to_string());
             for cat in categories {
                 category_set.insert(cat.name);
             }
-            for cat in analysis.categories {
-                category_set.insert(cat);
-            }
+            category_set.extend(analysis.categories);
 
+            let now = Utc::now();
             StringEntry {
                 value: value.to_string(),
-                first_seen: Utc::now(),
-                last_seen: Utc::now(),
+                first_seen: now,
+                last_seen: now,
                 total_occurrences: 0,
                 unique_files: HashSet::new(),
                 occurrences: Vec::new(),
