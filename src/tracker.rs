@@ -9,6 +9,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+// Type aliases to reduce complexity
+type StringCountVec = Vec<(String, usize)>;
+type StringScoreVec = Vec<(String, f64)>;
+type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
+type StringEntryMap = Arc<Mutex<HashMap<String, StringEntry>>>;
+type BoxedAnalyzer = Arc<Box<dyn StringAnalyzer>>;
+type BoxedCategorizer = Arc<Box<dyn Categorizer>>;
+
 /// Context in which a string was found
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StringContext {
@@ -55,9 +63,9 @@ pub struct StringStatistics {
     pub total_unique_strings: usize,
     pub total_occurrences: usize,
     pub total_files_analyzed: usize,
-    pub most_common: Vec<(String, usize)>,
+    pub most_common: StringCountVec,
     pub suspicious_strings: Vec<String>,
-    pub high_entropy_strings: Vec<(String, f64)>,
+    pub high_entropy_strings: StringScoreVec,
     pub category_distribution: HashMap<String, usize>,
     pub length_distribution: HashMap<String, usize>,
 }
@@ -76,15 +84,15 @@ pub struct StringFilter {
     pub regex_pattern: Option<String>,
     pub min_entropy: Option<f64>,
     pub max_entropy: Option<f64>,
-    pub date_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    pub date_range: Option<DateTimeRange>,
 }
 
 /// Main string tracking system
 #[derive(Clone)]
 pub struct StringTracker {
-    entries: Arc<Mutex<HashMap<String, StringEntry>>>,
-    analyzer: Arc<Box<dyn StringAnalyzer>>,
-    categorizer: Arc<Box<dyn Categorizer>>,
+    entries: StringEntryMap,
+    analyzer: BoxedAnalyzer,
+    categorizer: BoxedCategorizer,
     max_occurrences_per_string: usize,
 }
 
@@ -423,7 +431,7 @@ impl StringTracker {
     }
 
     /// Get strings related to a given string
-    pub fn get_related_strings(&self, value: &str, limit: usize) -> Vec<(String, f64)> {
+    pub fn get_related_strings(&self, value: &str, limit: usize) -> StringScoreVec {
         let entries = self.entries.lock().unwrap();
 
         let Some(target_entry) = entries.get(value) else {

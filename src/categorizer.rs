@@ -5,6 +5,9 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// Type aliases to reduce complexity
+type MatcherFn = Box<dyn Fn(&str) -> bool + Send + Sync>;
+
 // Pre-compiled regex patterns for performance
 static IPV4_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap());
@@ -31,7 +34,7 @@ pub struct CategoryRule {
     /// Name of the rule
     pub name: String,
     /// Function that determines if a string matches this rule
-    pub matcher: Box<dyn Fn(&str) -> bool + Send + Sync>,
+    pub matcher: MatcherFn,
     /// Category to assign if the rule matches
     pub category: StringCategory,
     /// Priority (higher priority rules are evaluated first)
