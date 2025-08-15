@@ -62,9 +62,11 @@ fn test_suspicious_detection() {
 
     let stats = tracker.get_statistics(Some(&filter));
     assert_eq!(stats.total_unique_strings, 1);
-    assert!(stats
-        .suspicious_strings
-        .contains(&"http://malware.com/payload".to_string()));
+    assert!(
+        stats
+            .suspicious_strings
+            .contains(&"http://malware.com/payload".to_string())
+    );
 }
 
 #[test]

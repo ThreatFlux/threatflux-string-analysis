@@ -34,15 +34,42 @@ fn main() -> anyhow::Result<()> {
 
     // Simulate processing security logs
     let log_entries = vec![
-        ("2024-01-15 10:23:45 [ERROR] Failed login attempt from 192.168.1.100", "auth.log"),
-        ("2024-01-15 10:23:46 [ERROR] Failed login attempt from 192.168.1.100", "auth.log"),
-        ("2024-01-15 10:23:47 [ERROR] Failed login attempt from 192.168.1.100", "auth.log"),
-        ("2024-01-15 10:24:01 [WARN] Unusual process spawned: powershell.exe -encodedcommand", "system.log"),
-        ("2024-01-15 10:24:05 [INFO] User admin logged in successfully", "auth.log"),
-        ("2024-01-15 10:25:10 [ERROR] Connection to C2 server at evil.malware.com:443", "network.log"),
-        ("2024-01-15 10:25:15 [WARN] Suspicious registry modification: HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", "system.log"),
-        ("2024-01-15 10:26:00 [INFO] Backup completed successfully", "backup.log"),
-        ("2024-01-15 10:27:30 [ERROR] Ransomware signature detected: .locked extension", "antivirus.log"),
+        (
+            "2024-01-15 10:23:45 [ERROR] Failed login attempt from 192.168.1.100",
+            "auth.log",
+        ),
+        (
+            "2024-01-15 10:23:46 [ERROR] Failed login attempt from 192.168.1.100",
+            "auth.log",
+        ),
+        (
+            "2024-01-15 10:23:47 [ERROR] Failed login attempt from 192.168.1.100",
+            "auth.log",
+        ),
+        (
+            "2024-01-15 10:24:01 [WARN] Unusual process spawned: powershell.exe -encodedcommand",
+            "system.log",
+        ),
+        (
+            "2024-01-15 10:24:05 [INFO] User admin logged in successfully",
+            "auth.log",
+        ),
+        (
+            "2024-01-15 10:25:10 [ERROR] Connection to C2 server at evil.malware.com:443",
+            "network.log",
+        ),
+        (
+            "2024-01-15 10:25:15 [WARN] Suspicious registry modification: HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+            "system.log",
+        ),
+        (
+            "2024-01-15 10:26:00 [INFO] Backup completed successfully",
+            "backup.log",
+        ),
+        (
+            "2024-01-15 10:27:30 [ERROR] Ransomware signature detected: .locked extension",
+            "antivirus.log",
+        ),
     ];
 
     println!("Processing security logs...\n");
