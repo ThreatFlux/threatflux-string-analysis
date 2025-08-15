@@ -20,70 +20,148 @@ type BoxedCategorizer = Arc<Box<dyn Categorizer>>;
 /// Context in which a string was found
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StringContext {
-    FileString { offset: Option<usize> },
-    Import { library: String },
-    Export { symbol: String },
-    Resource { resource_type: String },
-    Section { section_name: String },
-    Metadata { field: String },
-    Path { path_type: String },
-    Url { protocol: Option<String> },
-    Registry { hive: Option<String> },
-    Command { command_type: String },
-    Other { category: String },
+    /// String found in file content
+    FileString {
+        /// Byte offset within the file where the string was found
+        offset: Option<usize>,
+    },
+    /// String found in import tables or dependencies
+    Import {
+        /// Name of the imported library or module
+        library: String,
+    },
+    /// String found in export tables or exported symbols
+    Export {
+        /// Name of the exported symbol or function
+        symbol: String,
+    },
+    /// String found in embedded resources
+    Resource {
+        /// Type of resource (icon, string table, etc.)
+        resource_type: String,
+    },
+    /// String found in file sections
+    Section {
+        /// Name of the section where the string was found
+        section_name: String,
+    },
+    /// String found in file metadata
+    Metadata {
+        /// Metadata field name where the string was found
+        field: String,
+    },
+    /// String representing a file system path
+    Path {
+        /// Type of path (absolute, relative, UNC, etc.)
+        path_type: String,
+    },
+    /// String representing a URL
+    Url {
+        /// URL protocol (http, https, ftp, etc.)
+        protocol: Option<String>,
+    },
+    /// String found in Windows registry context
+    Registry {
+        /// Registry hive name (HKLM, HKCU, etc.)
+        hive: Option<String>,
+    },
+    /// String found in command or script context
+    Command {
+        /// Type of command (shell, powershell, batch, etc.)
+        command_type: String,
+    },
+    /// String found in other contexts
+    Other {
+        /// Category description for the context
+        category: String,
+    },
 }
 
 /// Record of a single string occurrence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringOccurrence {
+    /// Path to the file where the string was found
     pub file_path: String,
+    /// Hash of the file where the string was found
     pub file_hash: String,
+    /// Name of the tool that discovered this string
     pub tool_name: String,
+    /// Timestamp when the string was discovered
     pub timestamp: DateTime<Utc>,
+    /// Context in which the string was found
     pub context: StringContext,
 }
 
 /// Complete information about a tracked string
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringEntry {
+    /// The actual string value
     pub value: String,
+    /// Timestamp when this string was first discovered
     pub first_seen: DateTime<Utc>,
+    /// Timestamp when this string was last seen
     pub last_seen: DateTime<Utc>,
+    /// Total number of times this string has been found
     pub total_occurrences: usize,
+    /// Set of unique file paths where this string was found
     pub unique_files: HashSet<String>,
+    /// Detailed records of each occurrence
     pub occurrences: Vec<StringOccurrence>,
+    /// Set of categories this string belongs to
     pub categories: HashSet<String>,
+    /// Whether this string is flagged as suspicious
     pub is_suspicious: bool,
+    /// Shannon entropy score of the string
     pub entropy: f64,
 }
 
 /// Statistics about tracked strings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringStatistics {
+    /// Total number of unique strings tracked
     pub total_unique_strings: usize,
+    /// Total number of string occurrences across all files
     pub total_occurrences: usize,
+    /// Total number of files that have been analyzed
     pub total_files_analyzed: usize,
+    /// Most frequently occurring strings with their occurrence counts
     pub most_common: StringCountVec,
+    /// List of strings flagged as suspicious
     pub suspicious_strings: Vec<String>,
+    /// Strings with high entropy scores and their entropy values
     pub high_entropy_strings: StringScoreVec,
+    /// Distribution of strings across different categories
     pub category_distribution: HashMap<String, usize>,
+    /// Distribution of strings by length ranges
     pub length_distribution: HashMap<String, usize>,
 }
 
 /// Filter criteria for string queries
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StringFilter {
+    /// Minimum number of occurrences a string must have
     pub min_occurrences: Option<usize>,
+    /// Maximum number of occurrences a string can have
     pub max_occurrences: Option<usize>,
+    /// Minimum length of strings to include
     pub min_length: Option<usize>,
+    /// Maximum length of strings to include
     pub max_length: Option<usize>,
+    /// Filter by specific categories
     pub categories: Option<Vec<String>>,
+    /// Filter by specific file paths
     pub file_paths: Option<Vec<String>>,
+    /// Filter by specific file hashes
     pub file_hashes: Option<Vec<String>>,
+    /// If true, only return suspicious strings
     pub suspicious_only: Option<bool>,
+    /// Regular expression pattern to match string values
     pub regex_pattern: Option<String>,
+    /// Minimum entropy score for strings
     pub min_entropy: Option<f64>,
+    /// Maximum entropy score for strings
     pub max_entropy: Option<f64>,
+    /// Date range filter for when strings were discovered
     pub date_range: Option<DateTimeRange>,
 }
 
