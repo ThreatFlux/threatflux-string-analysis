@@ -355,7 +355,7 @@ impl StringTracker {
             .iter()
             .map(|e| (e.value.clone(), e.total_occurrences))
             .collect();
-        most_common.sort_by(|a, b| b.1.cmp(&a.1));
+        most_common.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         most_common.truncate(100);
 
         // Suspicious strings
@@ -372,7 +372,7 @@ impl StringTracker {
             .filter(|e| e.entropy > 4.0)
             .map(|e| (e.value.clone(), e.entropy))
             .collect();
-        high_entropy_strings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        high_entropy_strings.sort_by(|a, b| b.1.total_cmp(&a.1));
         high_entropy_strings.truncate(50);
 
         // Category distribution
@@ -503,7 +503,7 @@ impl StringTracker {
             .cloned()
             .collect();
 
-        results.sort_by(|a, b| b.total_occurrences.cmp(&a.total_occurrences));
+        results.sort_by_key(|entry| std::cmp::Reverse(entry.total_occurrences));
         results.truncate(limit);
         results
     }
@@ -526,7 +526,7 @@ impl StringTracker {
             .filter(|(_, sim)| *sim > 0.3)
             .collect();
 
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.total_cmp(&a.1));
         similarities.truncate(limit);
         similarities
     }
@@ -565,7 +565,11 @@ impl StringTracker {
         score += len_ratio;
         factors += 1.0;
 
-        if factors > 0.0 { score / factors } else { 0.0 }
+        if factors > 0.0 {
+            score / factors
+        } else {
+            0.0
+        }
     }
 
     /// Clear all tracked strings
