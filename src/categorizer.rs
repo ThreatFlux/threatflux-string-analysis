@@ -199,7 +199,7 @@ impl DefaultCategorizer {
         });
 
         // Sort rules by priority (descending)
-        self.rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+        self.rules.sort_by_key(|rule| std::cmp::Reverse(rule.priority));
     }
 }
 
@@ -227,7 +227,7 @@ impl Categorizer for DefaultCategorizer {
 
     fn add_rule(&mut self, rule: CategoryRule) -> AnalysisResult<()> {
         self.rules.push(rule);
-        self.rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+        self.rules.sort_by_key(|rule| std::cmp::Reverse(rule.priority));
         Ok(())
     }
 

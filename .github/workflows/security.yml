@@ -25,7 +25,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
-        toolchain: stable
+        toolchain: 1.95.0
 
     - name: Cache cargo registry
       uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809  # v4.2.4
@@ -64,7 +64,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
-        toolchain: stable
+        toolchain: 1.95.0
         components: clippy
 
     - name: Cache cargo registry
@@ -108,7 +108,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
-        toolchain: stable
+        toolchain: 1.95.0
 
     - name: Cache cargo registry
       uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809  # v4.2.4
@@ -178,7 +178,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
-        toolchain: stable
+        toolchain: 1.95.0
         components: clippy
 
     - name: Cache cargo registry
@@ -287,7 +287,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b  # v1
       with:
-        toolchain: stable
+        toolchain: 1.95.0
         components: rustfmt
 
     # Skip formatting check due to environment-specific formatting differences
