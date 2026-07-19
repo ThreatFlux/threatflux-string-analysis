@@ -1,8 +1,8 @@
-use threatflux_string_analysis::{
-    AnalysisConfig, DefaultCategorizer, DefaultPatternProvider, DefaultStringAnalyzer,
-    Pattern, PatternDef, PatternProvider, StringAnalyzer, Categorizer,
-};
 use regex::Regex;
+use threatflux_string_analysis::{
+    AnalysisConfig, Categorizer, DefaultCategorizer, DefaultPatternProvider, DefaultStringAnalyzer,
+    Pattern, PatternDef, PatternProvider, StringAnalyzer,
+};
 
 #[test]
 fn test_analysis_config_default() {
@@ -98,7 +98,7 @@ fn test_categorizer_additional_rules() {
     let ipv6 = categorizer.categorize("2001:0db8:85a3:0000:0000:8a2e:0370:7334");
     assert!(ipv6.iter().any(|c| c.name == "ip_address"));
 }
-use threatflux_string_analysis::{StringTracker, StringContext, StringFilter};
+use threatflux_string_analysis::{StringContext, StringFilter, StringTracker};
 
 #[test]
 fn test_tracker_regex_and_hash_filter() {

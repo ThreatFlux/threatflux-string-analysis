@@ -565,11 +565,7 @@ impl StringTracker {
         score += len_ratio;
         factors += 1.0;
 
-        if factors > 0.0 {
-            score / factors
-        } else {
-            0.0
-        }
+        score / factors
     }
 
     /// Clear all tracked strings
