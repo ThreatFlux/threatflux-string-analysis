@@ -1,4 +1,7 @@
-use threatflux_string_analysis::{StringContext, StringFilter, StringTracker};
+use threatflux_string_analysis::{
+    Categorizer, CategoryRule, DefaultCategorizer, StringCategory, StringContext, StringFilter,
+    StringTracker,
+};
 
 #[test]
 fn test_basic_functionality() {
@@ -62,11 +65,9 @@ fn test_suspicious_detection() {
 
     let stats = tracker.get_statistics(Some(&filter));
     assert_eq!(stats.total_unique_strings, 1);
-    assert!(
-        stats
-            .suspicious_strings
-            .contains(&"http://malware.com/payload".to_string())
-    );
+    assert!(stats
+        .suspicious_strings
+        .contains(&"http://malware.com/payload".to_string()));
 }
 
 #[test]
@@ -98,4 +99,70 @@ fn test_categorization() {
             expected_category
         );
     }
+}
+
+#[test]
+fn test_custom_categorizer_rules_are_priority_sorted() {
+    let mut categorizer = DefaultCategorizer::empty();
+
+    categorizer
+        .add_rule(CategoryRule {
+            name: "low_priority".to_string(),
+            matcher: Box::new(|value| value == "shared"),
+            category: StringCategory {
+                name: "low".to_string(),
+                parent: None,
+                description: "Low priority match".to_string(),
+            },
+            priority: 1,
+        })
+        .unwrap();
+
+    categorizer
+        .add_rule(CategoryRule {
+            name: "high_priority".to_string(),
+            matcher: Box::new(|value| value == "shared"),
+            category: StringCategory {
+                name: "high".to_string(),
+                parent: None,
+                description: "High priority match".to_string(),
+            },
+            priority: 10,
+        })
+        .unwrap();
+
+    let categories = categorizer.categorize("shared");
+    let names: Vec<_> = categories
+        .iter()
+        .map(|category| category.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["high", "low"]);
+}
+
+#[test]
+fn test_high_entropy_statistics_are_sorted_descending() {
+    let tracker = StringTracker::new();
+
+    for value in [
+        "abcdefghijklmnopqrstuvwxyz0123456789",
+        "a1B2c3D4e5F6g7H8i9J0kLmNoP",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ] {
+        tracker
+            .track_string(
+                value,
+                "/entropy.bin",
+                value,
+                "scanner",
+                StringContext::FileString { offset: None },
+            )
+            .unwrap();
+    }
+
+    let stats = tracker.get_statistics(None);
+    assert!(stats.high_entropy_strings.len() >= 2);
+    assert!(stats
+        .high_entropy_strings
+        .windows(2)
+        .all(|pair| pair[0].1 >= pair[1].1));
 }

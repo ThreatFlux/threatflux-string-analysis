@@ -4,7 +4,7 @@
 name = "threatflux-string-analysis"
 version = "0.1.1"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.95.0"
 authors = ["ThreatFlux Team"]
 description = "Advanced string analysis and categorization library for security applications"
 license = "MIT"
