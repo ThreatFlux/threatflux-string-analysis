@@ -1,161 +1,191 @@
 # ThreatFlux String Analysis
 
-A comprehensive Rust library for advanced string analysis and categorization, designed for security applications including malware analysis, threat hunting, and forensic investigations.
+[![Crates.io](https://img.shields.io/crates/v/threatflux-string-analysis.svg)](https://crates.io/crates/threatflux-string-analysis)
+[![docs.rs](https://docs.rs/threatflux-string-analysis/badge.svg)](https://docs.rs/threatflux-string-analysis)
+[![CI](https://github.com/ThreatFlux/threatflux-string-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/ThreatFlux/threatflux-string-analysis/actions/workflows/ci.yml)
+[![Security](https://github.com/ThreatFlux/threatflux-string-analysis/actions/workflows/security.yml/badge.svg)](https://github.com/ThreatFlux/threatflux-string-analysis/actions/workflows/security.yml)
+[![MSRV](https://img.shields.io/badge/MSRV-1.95.0-orange.svg)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/LICENSE)
 
-## Features
+An in-memory Rust library for tracking strings across files, enriching them
+with context, and applying configurable categorization, retention, and analysis
+heuristics.
 
-- **String Tracking**: Track string occurrences across multiple files with full context
-- **Automatic Categorization**: Identify URLs, paths, commands, registry keys, and more
-- **Entropy Analysis**: Detect potentially encoded or encrypted strings
-- **Suspicious Pattern Detection**: Built-in patterns for malware and threat indicators
-- **Statistical Analysis**: Generate insights about string distributions and relationships
-- **Extensible Architecture**: Add custom patterns and categorization rules
-- **High Performance**: Optimized for analyzing large volumes of strings
-- **Serialization Support**: Full serde support for all data structures
+ThreatFlux String Analysis is designed for binary-analysis, forensic, and
+security-pipeline enrichment. Its indicators are evidence for an application to
+interpret; they are not malware verdicts, reputation data, or a replacement for
+validation by a security analyst.
 
-## Quick Start
+## Highlights
 
-Add this to your `Cargo.toml`:
+- Track occurrences, source files, timestamps, and discovery context
+- Categorize URLs, paths, registry keys, commands, libraries, and other strings
+- Calculate byte-level Shannon entropy
+- Apply built-in or application-defined regular-expression patterns
+- Filter statistics by occurrence count, length, category, file, hash, time,
+  entropy, suspicion, or regular expression
+- Search tracked values and rank related strings with a documented heuristic
+- Bound retained strings, source identities, occurrence detail, categories,
+  indicators, and input byte lengths through `AnalysisConfig`
+- Share tracker state safely between clones
+
+## Install
 
 ```toml
 [dependencies]
-threatflux-string-analysis = "0.1.0"
+threatflux-string-analysis = "0.2.0"
 ```
 
-Basic usage:
+Version 0.2.0 requires Rust 1.95.0 or newer.
+
+## Quick start
 
 ```rust
-use threatflux_string_analysis::{StringTracker, StringContext};
+use threatflux_string_analysis::{StringContext, StringTracker};
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tracker = StringTracker::new();
-    
-    // Track a suspicious string
+
     tracker.track_string(
-        "http://malware.com/beacon",
-        "/path/to/file.exe",
-        "file_hash_123",
-        "my_scanner",
-        StringContext::Url { protocol: Some("http".to_string()) }
+        "powershell.exe -EncodedCommand ...",
+        "/samples/example.bin",
+        "sha256:example",
+        "example-scanner",
+        StringContext::Command {
+            command_type: "PowerShell".to_owned(),
+        },
     )?;
-    
-    // Get statistics
-    let stats = tracker.get_statistics(None);
-    println!("Suspicious strings: {}", stats.suspicious_strings.len());
-    
+
+    let statistics = tracker.get_statistics(None)?;
+    println!("tracked strings: {}", statistics.total_unique_strings);
+    println!(
+        "heuristic-positive strings: {}",
+        statistics.total_suspicious_strings
+    );
+
     Ok(())
 }
 ```
 
-## Advanced Usage
+The default tracker applies the built-in categorizer and pattern set. A URL or
+IP-address match is informational by default; command, credential, malware, and
+other explicitly suspicious patterns may contribute a heuristic signal.
 
-### Custom Pattern Matching
+## Configure retention
 
-```rust
-use threatflux_string_analysis::{PatternDef, DefaultPatternProvider};
-
-let mut provider = DefaultPatternProvider::empty();
-
-// Add custom pattern for API keys
-provider.add_pattern(PatternDef {
-    name: "api_key".to_string(),
-    regex: r"[A-Za-z0-9]{32,}".to_string(),
-    category: "credential".to_string(),
-    description: "Potential API key".to_string(),
-    is_suspicious: true,
-    severity: 7,
-})?;
-```
-
-### Custom Categorization
+Configuration is validated when a custom tracker is constructed:
 
 ```rust
-use threatflux_string_analysis::{CategoryRule, StringCategory, DefaultCategorizer};
+use threatflux_string_analysis::{AnalysisConfig, StringTracker};
 
-let mut categorizer = DefaultCategorizer::new();
+fn configured_tracker() -> Result<StringTracker, Box<dyn std::error::Error>> {
+    let config = AnalysisConfig {
+        max_occurrences_per_string: 128,
+        ..AnalysisConfig::default()
+    };
 
-categorizer.add_rule(CategoryRule {
-    name: "custom_rule".to_string(),
-    matcher: Box::new(|s| s.contains("custom_pattern")),
-    category: StringCategory {
-        name: "custom_category".to_string(),
-        parent: None,
-        description: "Custom category description".to_string(),
-    },
-    priority: 100,
-})?;
+    Ok(StringTracker::with_config(config)?)
+}
 ```
 
-### Filtering and Searching
+Invalid limits and non-finite thresholds are rejected. At unique-string
+capacity, repeated values remain accepted but a new distinct value returns
+`CapacityExceeded`; the tracker does not silently evict an existing entry.
+Per-string occurrence detail retains the newest ingested records, while the
+aggregate count continues to describe every accepted observation. See the
+[behavior contract](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/BEHAVIOR.md)
+for the complete semantics.
+
+## Filter statistics
 
 ```rust
-use threatflux_string_analysis::StringFilter;
+use threatflux_string_analysis::{StringFilter, StringTracker};
 
-// Filter for high-entropy suspicious strings
-let filter = StringFilter {
-    suspicious_only: Some(true),
-    min_entropy: Some(4.5),
-    categories: Some(vec!["network".to_string(), "command".to_string()]),
-    ..Default::default()
-};
+fn suspicious_commands(
+    tracker: &StringTracker,
+) -> Result<u64, Box<dyn std::error::Error>> {
+    let filter = StringFilter {
+        categories: Some(vec!["command".to_owned()]),
+        suspicious_only: Some(true),
+        ..StringFilter::default()
+    };
 
-let filtered_stats = tracker.get_statistics(Some(&filter));
+    Ok(tracker.get_statistics(Some(&filter))?.total_unique_strings)
+}
 ```
 
-## Use Cases
+Every populated filter field participates in the query. Malformed regular
+expressions return an error instead of silently broadening the result.
 
-### Malware Analysis
-- Extract and categorize strings from binary files
-- Identify C2 servers, encryption keys, and malicious commands
-- Track string patterns across malware families
+## Custom analysis
 
-### Security Log Analysis
-- Process security logs to identify IOCs
-- Detect repeated attack patterns
-- Correlate suspicious activities
+The crate exposes three extension points:
 
-### Threat Hunting
-- Search for specific threat indicators
-- Analyze string entropy for obfuscation detection
-- Track evolution of threats over time
+- `StringAnalyzer` computes entropy and heuristic indicators.
+- `Categorizer` assigns one or more descriptive categories.
+- `PatternProvider` manages compiled pattern definitions.
 
-### Forensic Investigations
-- Extract and analyze strings from memory dumps
-- Categorize artifacts by type
-- Build timelines of string occurrences
+Use `StringTracker::with_components` for application-specific defaults or
+`StringTracker::with_components_and_config` for custom components and limits.
+Read the
+[pattern guide](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/PATTERNS.md)
+before treating a custom match as security-relevant.
 
-## Architecture
+## Behavioral boundaries
 
-The library is built with a modular, trait-based architecture:
+- The tracker is in-memory only; it does not persist or transmit observations.
+- Cloned trackers share the same retained entries.
+- Values are limited to 1 MiB of UTF-8 by default. Each path, hash, tool name,
+  and owned context field is limited to 16 KiB by default; oversize input is
+  rejected before mutation.
+- Count and field limits are independent ceilings, not a single heap-byte
+  budget. Choose them together for the deployment's memory envelope; maximum
+  values can multiply into a large retained data set.
+- Entropy is calculated over UTF-8 bytes, so it is not a language model or a
+  reliable encrypted-content detector.
+- Categories and indicators are heuristic and can produce false positives and
+  false negatives.
+- Custom analyzers and categorizers are trusted in-process code. Their panics
+  propagate to the caller, although callbacks run outside the tracker lock.
+- Related-string scores are ranking hints, not probabilistic confidence values.
+- Statistics expose bounded sample lists; category distributions can still
+  contain one key per retained category. Use targeted filters or lookup methods
+  when an application needs a specific entry.
 
-- **StringAnalyzer**: Core trait for analyzing strings
-- **Categorizer**: Trait for categorizing strings
-- **PatternProvider**: Trait for managing detection patterns
-- **StringTracker**: Main tracking and analysis engine
+See the
+[behavior contract](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/BEHAVIOR.md)
+for filtering, ordering, retention, timestamp, concurrency, and error
+semantics.
 
-This design allows for easy extension and customization for specific use cases.
+## Examples and guides
 
-## Examples
+- [Basic usage](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/examples/basic_usage.rs) —
+  tracking and statistics
+- [Custom patterns](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/examples/custom_patterns.rs) —
+  domain-specific patterns
+- [Security-log analysis](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/examples/security_log_analysis.rs) —
+  extracting and correlating log artifacts
+- [Pattern guide](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/PATTERNS.md) —
+  pattern and indicator semantics
+- [File-scanner integration](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/FILE_SCANNER.md) —
+  integration boundaries
+- [Migrating to 0.2](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/MIGRATING_TO_0.2.md) —
+  0.1 upgrade guide
 
-See the `examples/` directory for complete examples:
+## Development and security
 
-- `basic_usage.rs`: Introduction to the library
-- `security_log_analysis.rs`: Analyzing security logs
-- `custom_patterns.rs`: Creating domain-specific patterns
-
-## Performance
-
-The library is optimized for high-volume string analysis:
-
-- Efficient string deduplication
-- Configurable memory limits
-- Fast pattern matching with compiled regexes
-- Minimal allocations in hot paths
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
+- [Contributing](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/CONTRIBUTING.md) —
+  contribution workflow
+- [Development](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/DEVELOPMENT.md) —
+  local setup and commands
+- [Testing](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/TESTING.md) —
+  validation matrix
+- [Security policy](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/SECURITY.md) —
+  private vulnerability reporting
+- [Changelog](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/CHANGELOG.md) —
+  release history
 
 ## License
 
-This project is licensed under the MIT license.
+Licensed under the
+[MIT License](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/LICENSE).
