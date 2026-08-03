@@ -218,13 +218,23 @@ jobs:
           PACKAGE_VERSION: ${{ needs.provenance.outputs.package_version }}
         shell: bash
         run: |
-          package="target/package/${PACKAGE_NAME}-${PACKAGE_VERSION}.crate"
-          test -f "$package"
-          mkdir release-artifacts
-          cp "$package" target/package-contents.txt release-artifacts/
+          mkdir -p release-artifacts
+          package="release-artifacts/${PACKAGE_NAME}-${PACKAGE_VERSION}.crate"
+          crate_data="$(curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            --user-agent "ThreatFlux-string-analysis-release/${GITHUB_RUN_ID}" \
+            "https://crates.io/api/v1/crates/${PACKAGE_NAME}")"
+          checksum="$(jq -er --arg version "$PACKAGE_VERSION" \
+            '.versions[] | select(.num == $version and .yanked == false) | .checksum' \
+            <<< "$crate_data")"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors \
+            --user-agent "ThreatFlux-string-analysis-release/${GITHUB_RUN_ID}" \
+            --output "$package" \
+            "https://crates.io/api/v1/crates/${PACKAGE_NAME}/${PACKAGE_VERSION}/download"
+          cp target/package-contents.txt release-artifacts/
           cd release-artifacts
-          sha256sum "${PACKAGE_NAME}-${PACKAGE_VERSION}.crate" \
+          printf '%s  %s\n' "$checksum" "${PACKAGE_NAME}-${PACKAGE_VERSION}.crate" \
             > "${PACKAGE_NAME}-${PACKAGE_VERSION}.crate.sha256"
+          sha256sum --check "${PACKAGE_NAME}-${PACKAGE_VERSION}.crate.sha256"
 
       - name: Upload published package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Stage GitHub release assets from the canonical crates.io archive and verify
+  its registry checksum instead of assuming `cargo publish` retains a local
+  package file.
+
 ## [0.2.0] - 2026-08-03
 
 ### Added
