@@ -1,220 +1,203 @@
-//! String categorization functionality
+//! String categorization functionality.
 
-use crate::types::AnalysisResult;
-use once_cell::sync::Lazy;
+use crate::types::{
+    AnalysisError, AnalysisResult, MAX_DESCRIPTION_BYTES, compact_string, validate_identifier,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::net::IpAddr;
+use std::sync::LazyLock;
 
-// Type aliases to reduce complexity
-type MatcherFn = Box<dyn Fn(&str) -> bool + Send + Sync>;
+const MAX_CATEGORY_RULES: usize = 4_096;
 
-// Pre-compiled regex patterns for performance
-static IPV4_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").unwrap());
+static EMAIL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        .expect("the built-in email regex must compile")
+});
 
-static IPV6_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$").unwrap());
+/// Thread-safe predicate used by a [`CategoryRule`].
+pub type CategoryMatcher = Box<dyn Fn(&str) -> bool + Send + Sync>;
 
-static EMAIL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
-
-/// Represents a category that strings can belong to
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// A named category that can be assigned to a string.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StringCategory {
-    /// Name of the category
+    /// Stable category name.
     pub name: String,
-    /// Parent category (for hierarchical categorization)
+    /// Optional parent category name.
     pub parent: Option<String>,
-    /// Description of what this category represents
+    /// Human-readable category description.
     pub description: String,
 }
 
-/// Rule for categorizing strings
+impl StringCategory {
+    pub(crate) fn compact(mut self) -> Self {
+        self.name = compact_string(self.name);
+        self.parent = self.parent.map(compact_string);
+        self.description = compact_string(self.description);
+        self
+    }
+}
+
+/// Rule for categorizing strings.
 pub struct CategoryRule {
-    /// Name of the rule
+    /// Unique rule name.
     pub name: String,
-    /// Function that determines if a string matches this rule
-    pub matcher: MatcherFn,
-    /// Category to assign if the rule matches
+    /// Predicate that determines whether a string matches.
+    pub matcher: CategoryMatcher,
+    /// Category assigned on a match.
     pub category: StringCategory,
-    /// Priority (higher priority rules are evaluated first)
+    /// Priority; larger values are evaluated first.
     pub priority: i32,
 }
 
-/// Trait for categorizing strings
+impl CategoryRule {
+    fn validate(&self) -> AnalysisResult<()> {
+        validate_identifier("category rule", &self.name)?;
+        validate_category(&self.category)
+    }
+}
+
+/// Interface for deterministic, thread-safe string categorizers.
 pub trait Categorizer: Send + Sync {
-    /// Categorize a string
+    /// Categorize a string in deterministic rule order.
     fn categorize(&self, value: &str) -> Vec<StringCategory>;
 
-    /// Add a categorization rule
+    /// Validate and add a uniquely named rule.
     fn add_rule(&mut self, rule: CategoryRule) -> AnalysisResult<()>;
 
-    /// Remove a rule by name
+    /// Remove an existing rule by name.
     fn remove_rule(&mut self, name: &str) -> AnalysisResult<()>;
 
-    /// Get all categories
+    /// Return distinct categories in deterministic rule order.
     fn get_categories(&self) -> Vec<StringCategory>;
 }
 
-/// Default categorizer implementation
+/// Default heuristic categorizer.
 pub struct DefaultCategorizer {
     rules: Vec<CategoryRule>,
 }
 
 impl DefaultCategorizer {
-    /// Create a new categorizer with default rules
+    /// Create a categorizer with the built-in informational rules.
     pub fn new() -> Self {
-        let mut categorizer = Self { rules: Vec::new() };
-
-        // Add default rules
+        let mut categorizer = Self::empty();
         categorizer.add_default_rules();
-
         categorizer
     }
 
-    /// Create an empty categorizer
-    #[allow(dead_code)]
+    /// Create a categorizer without built-in rules.
     pub fn empty() -> Self {
         Self { rules: Vec::new() }
     }
 
     fn add_default_rules(&mut self) {
-        // URL categorization
-        self.rules.push(CategoryRule {
-            name: "url_rule".to_string(),
-            matcher: Box::new(|s| {
-                s.starts_with("http://") || s.starts_with("https://") || s.starts_with("ftp://")
-            }),
-            category: StringCategory {
-                name: "url".to_string(),
-                parent: Some("network".to_string()),
-                description: "URL or web address".to_string(),
-            },
-            priority: 100,
-        });
-
-        // File path categorization
-        self.rules.push(CategoryRule {
-            name: "path_rule".to_string(),
-            matcher: Box::new(|s| {
-                (s.contains('/') || s.contains('\\'))
-                    && (s.starts_with("/") || s.starts_with("\\") || s.contains(":\\"))
-            }),
-            category: StringCategory {
-                name: "path".to_string(),
-                parent: Some("filesystem".to_string()),
-                description: "File system path".to_string(),
-            },
-            priority: 90,
-        });
-
-        // Registry key categorization
-        self.rules.push(CategoryRule {
-            name: "registry_rule".to_string(),
-            matcher: Box::new(|s| s.starts_with("HKEY_") || s.contains("\\SOFTWARE\\")),
-            category: StringCategory {
-                name: "registry".to_string(),
-                parent: Some("windows".to_string()),
-                description: "Windows registry key".to_string(),
-            },
-            priority: 95,
-        });
-
-        // Library/DLL categorization
-        self.rules.push(CategoryRule {
-            name: "library_rule".to_string(),
-            matcher: Box::new(|s| {
-                s.ends_with(".dll") || s.ends_with(".so") || s.ends_with(".dylib") ||
-                s.contains(".so.") || // versioned shared libraries like libc.so.6
-                (s.ends_with(".dll") || s.contains("kernel32") || s.contains("ntdll"))
-            }),
-            category: StringCategory {
-                name: "library".to_string(),
-                parent: Some("binary".to_string()),
-                description: "Shared library or DLL".to_string(),
-            },
-            priority: 85,
-        });
-
-        // Command categorization
-        self.rules.push(CategoryRule {
-            name: "command_rule".to_string(),
-            matcher: Box::new(|s| {
-                s.contains("cmd")
-                    || s.contains("powershell")
-                    || s.contains("bash")
-                    || s.contains("/bin/")
-            }),
-            category: StringCategory {
-                name: "command".to_string(),
-                parent: Some("execution".to_string()),
-                description: "Command or shell-related string".to_string(),
-            },
-            priority: 80,
-        });
-
-        // IP address categorization (IPv4 and IPv6)
-        self.rules.push(CategoryRule {
-            name: "ip_rule".to_string(),
-            matcher: Box::new(|s| IPV4_REGEX.is_match(s) || IPV6_REGEX.is_match(s)),
-            category: StringCategory {
-                name: "ip_address".to_string(),
-                parent: Some("network".to_string()),
-                description: "IP address (IPv4 or IPv6)".to_string(),
-            },
-            priority: 95,
-        });
-
-        // Email categorization
-        self.rules.push(CategoryRule {
-            name: "email_rule".to_string(),
-            matcher: Box::new(|s| s.contains('@') && s.contains('.') && EMAIL_REGEX.is_match(s)),
-            category: StringCategory {
-                name: "email".to_string(),
-                parent: Some("contact".to_string()),
-                description: "Email address".to_string(),
-            },
-            priority: 85,
-        });
-
-        // API call categorization
-        self.rules.push(CategoryRule {
-            name: "api_call_rule".to_string(),
-            matcher: Box::new(|s| {
-                // Common Windows API calls
-                s.contains("CreateProcess") || s.contains("VirtualAlloc") || s.contains("WriteProcessMemory") ||
-                s.contains("GetProcAddress") || s.contains("LoadLibrary") || s.contains("OpenProcess") ||
-                // Unix/Linux API calls
-                s == "malloc" || s == "calloc" || s == "realloc" || s == "free" ||
-                s == "fork" || s == "exec" || s == "open" || s == "read" || s == "write" ||
-                // Common API patterns
-                s.ends_with("A") && s.len() > 5 && s.chars().any(|c| c.is_uppercase()) // Windows API naming pattern
-            }),
-            category: StringCategory {
-                name: "api_call".to_string(),
-                parent: Some("system".to_string()),
-                description: "System API call".to_string(),
-            },
-            priority: 90,
-        });
-
-        // Sort rules by priority (descending)
-        self.rules
-            .sort_by_key(|rule| std::cmp::Reverse(rule.priority));
+        self.rules = vec![
+            rule(
+                "url",
+                "url",
+                "network",
+                "URL or web address",
+                100,
+                |value| {
+                    [
+                        "http://",
+                        "https://",
+                        "ftp://",
+                        "ssh://",
+                        "telnet://",
+                        "rdp://",
+                    ]
+                    .iter()
+                    .any(|scheme| starts_with_ascii_case(value, scheme))
+                },
+            ),
+            rule(
+                "registry",
+                "registry",
+                "windows",
+                "Windows registry key",
+                95,
+                |value| {
+                    starts_with_ascii_case(value, "HKEY_")
+                        || contains_ascii_case(value, "\\SOFTWARE\\")
+                },
+            ),
+            rule(
+                "ip_address",
+                "ip_address",
+                "network",
+                "Syntactically valid IPv4 or IPv6 address",
+                95,
+                |value| value.parse::<IpAddr>().is_ok(),
+            ),
+            rule(
+                "path",
+                "path",
+                "filesystem",
+                "Absolute or drive-qualified file-system path",
+                90,
+                |value| {
+                    value.starts_with('/')
+                        || value.starts_with('\\')
+                        || (value.len() >= 3
+                            && value.as_bytes()[1] == b':'
+                            && matches!(value.as_bytes()[2], b'\\' | b'/'))
+                },
+            ),
+            rule(
+                "api_call",
+                "api_call",
+                "system",
+                "Known system API function name",
+                90,
+                is_known_api_call,
+            ),
+            rule(
+                "library",
+                "library",
+                "binary",
+                "Shared library or DLL name",
+                85,
+                |value| {
+                    ends_with_ascii_case(value, ".dll")
+                        || ends_with_ascii_case(value, ".so")
+                        || ends_with_ascii_case(value, ".dylib")
+                        || contains_ascii_case(value, ".so.")
+                },
+            ),
+            rule(
+                "email",
+                "email",
+                "contact",
+                "Email-address-shaped string",
+                85,
+                |value| EMAIL_REGEX.is_match(value),
+            ),
+            rule(
+                "command",
+                "command",
+                "execution",
+                "Command or shell interpreter reference",
+                80,
+                is_command_reference,
+            ),
+        ];
+        sort_rules(&mut self.rules);
     }
 }
 
 impl Categorizer for DefaultCategorizer {
     fn categorize(&self, value: &str) -> Vec<StringCategory> {
+        let mut seen = BTreeSet::new();
         let mut categories = Vec::new();
-
         for rule in &self.rules {
-            if (rule.matcher)(value) {
+            if (rule.matcher)(value) && seen.insert(rule.category.name.clone()) {
                 categories.push(rule.category.clone());
             }
         }
 
-        // If no specific category matched, return generic
         if categories.is_empty() {
             categories.push(StringCategory {
                 name: "generic".to_string(),
@@ -222,38 +205,224 @@ impl Categorizer for DefaultCategorizer {
                 description: "Generic string".to_string(),
             });
         }
-
         categories
     }
 
-    fn add_rule(&mut self, rule: CategoryRule) -> AnalysisResult<()> {
+    fn add_rule(&mut self, mut rule: CategoryRule) -> AnalysisResult<()> {
+        rule.validate()?;
+        if self.rules.len() >= MAX_CATEGORY_RULES {
+            return Err(AnalysisError::CapacityExceeded {
+                resource: "category rules",
+                limit: MAX_CATEGORY_RULES,
+            });
+        }
+        if self.rules.iter().any(|existing| existing.name == rule.name) {
+            return Err(AnalysisError::DuplicateName {
+                kind: "category rule",
+                name: rule.name.to_string(),
+            });
+        }
+        rule.name = compact_string(rule.name);
+        rule.category = rule.category.compact();
         self.rules.push(rule);
-        self.rules
-            .sort_by_key(|rule| std::cmp::Reverse(rule.priority));
+        sort_rules(&mut self.rules);
         Ok(())
     }
 
     fn remove_rule(&mut self, name: &str) -> AnalysisResult<()> {
-        self.rules.retain(|r| r.name != name);
+        validate_identifier("category rule", name)?;
+        let Some(index) = self.rules.iter().position(|rule| rule.name == name) else {
+            return Err(AnalysisError::NotFound {
+                kind: "category rule",
+                name: name.to_string(),
+            });
+        };
+        self.rules.remove(index);
         Ok(())
     }
 
     fn get_categories(&self) -> Vec<StringCategory> {
-        let mut categories = Vec::new();
-        let mut seen = std::collections::HashSet::new();
-
-        for rule in &self.rules {
-            if seen.insert(rule.category.name.clone()) {
-                categories.push(rule.category.clone());
-            }
-        }
-
-        categories
+        let mut seen = BTreeSet::new();
+        self.rules
+            .iter()
+            .filter(|rule| seen.insert(rule.category.name.clone()))
+            .map(|rule| rule.category.clone())
+            .collect()
     }
 }
 
 impl Default for DefaultCategorizer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub(crate) fn validate_category(category: &StringCategory) -> AnalysisResult<()> {
+    validate_identifier("category", &category.name)?;
+    if let Some(parent) = &category.parent {
+        validate_identifier("parent category", parent)?;
+    }
+    if category.description.len() > MAX_DESCRIPTION_BYTES {
+        return Err(AnalysisError::InputTooLarge {
+            field: "category.description",
+            actual: category.description.len(),
+            limit: MAX_DESCRIPTION_BYTES,
+        });
+    }
+    if category.description.trim().is_empty() {
+        return Err(AnalysisError::InvalidIdentifier {
+            kind: "category description",
+            name: category.description.clone(),
+            reason: "must not be empty or whitespace-only",
+        });
+    }
+    if category.description.chars().any(char::is_control) {
+        return Err(AnalysisError::InvalidIdentifier {
+            kind: "category description",
+            name: category.description.to_string(),
+            reason: "must not contain control characters",
+        });
+    }
+    Ok(())
+}
+
+fn sort_rules(rules: &mut [CategoryRule]) {
+    rules.sort_by(|left, right| {
+        right
+            .priority
+            .cmp(&left.priority)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+}
+
+fn rule(
+    rule_name: &str,
+    category_name: &str,
+    parent: &str,
+    description: &str,
+    priority: i32,
+    matcher: impl Fn(&str) -> bool + Send + Sync + 'static,
+) -> CategoryRule {
+    CategoryRule {
+        name: rule_name.to_string(),
+        matcher: Box::new(matcher),
+        category: StringCategory {
+            name: category_name.to_string(),
+            parent: Some(parent.to_string()),
+            description: description.to_string(),
+        },
+        priority,
+    }
+}
+
+fn is_command_reference(value: &str) -> bool {
+    value
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '.')
+        .any(|token| {
+            [
+                "cmd",
+                "cmd.exe",
+                "powershell",
+                "powershell.exe",
+                "pwsh",
+                "pwsh.exe",
+                "bash",
+                "dash",
+                "zsh",
+                "ksh",
+                "sh",
+            ]
+            .iter()
+            .any(|command| token.eq_ignore_ascii_case(command))
+        })
+}
+
+fn starts_with_ascii_case(value: &str, prefix: &str) -> bool {
+    value
+        .as_bytes()
+        .get(..prefix.len())
+        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(prefix.as_bytes()))
+}
+
+fn ends_with_ascii_case(value: &str, suffix: &str) -> bool {
+    value
+        .as_bytes()
+        .get(value.len().saturating_sub(suffix.len())..)
+        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(suffix.as_bytes()))
+}
+
+fn contains_ascii_case(value: &str, needle: &str) -> bool {
+    value
+        .as_bytes()
+        .windows(needle.len())
+        .any(|candidate| candidate.eq_ignore_ascii_case(needle.as_bytes()))
+}
+
+fn is_known_api_call(value: &str) -> bool {
+    matches!(
+        value,
+        "CreateProcess"
+            | "CreateProcessA"
+            | "CreateProcessW"
+            | "VirtualAlloc"
+            | "VirtualAllocEx"
+            | "WriteProcessMemory"
+            | "GetProcAddress"
+            | "LoadLibrary"
+            | "LoadLibraryA"
+            | "LoadLibraryW"
+            | "OpenProcess"
+            | "CreateRemoteThread"
+            | "malloc"
+            | "calloc"
+            | "realloc"
+            | "free"
+            | "fork"
+            | "exec"
+            | "open"
+            | "read"
+            | "write"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn added_rules_compact_owned_metadata() {
+        let mut name = String::with_capacity(1_000_000);
+        name.push_str("compact_rule");
+        let mut category_name = String::with_capacity(1_000_000);
+        category_name.push_str("compact_category");
+        let mut parent = String::with_capacity(1_000_000);
+        parent.push_str("parent");
+        let mut description = String::with_capacity(1_000_000);
+        description.push_str("Category compaction regression");
+        let mut categorizer = DefaultCategorizer::empty();
+        categorizer
+            .add_rule(CategoryRule {
+                name,
+                matcher: Box::new(|_| true),
+                category: StringCategory {
+                    name: category_name,
+                    parent: Some(parent),
+                    description,
+                },
+                priority: 0,
+            })
+            .unwrap();
+
+        let rule = &categorizer.rules[0];
+        assert_eq!(rule.name.capacity(), rule.name.len());
+        assert_eq!(rule.category.name.capacity(), rule.category.name.len());
+        assert_eq!(
+            rule.category.parent.as_ref().unwrap().capacity(),
+            rule.category.parent.as_ref().unwrap().len()
+        );
+        assert_eq!(
+            rule.category.description.capacity(),
+            rule.category.description.len()
+        );
     }
 }

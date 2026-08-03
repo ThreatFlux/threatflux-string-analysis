@@ -1,40 +1,6 @@
-//! # ThreatFlux String Analysis
-//!
-//! A comprehensive string analysis library for security applications, providing
-//! advanced categorization, entropy analysis, and pattern detection capabilities.
-//!
-//! ## Features
-//!
-//! - **String Tracking**: Track string occurrences across multiple files with context
-//! - **Automatic Categorization**: Identify URLs, paths, commands, registry keys, etc.
-//! - **Entropy Analysis**: Detect potentially encoded or encrypted strings
-//! - **Suspicious Pattern Detection**: Built-in patterns for malware and threat indicators
-//! - **Statistical Analysis**: Generate insights about string distributions and relationships
-//! - **Extensible Architecture**: Add custom patterns and categorization rules
-//!
-//! ## Quick Start
-//!
-//! ```rust
-//! use threatflux_string_analysis::{StringTracker, StringContext};
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let tracker = StringTracker::new();
-//!
-//! // Track a string
-//! tracker.track_string(
-//!     "http://suspicious.com/malware.exe",
-//!     "/path/to/file.bin",
-//!     "file_hash_123",
-//!     "my_scanner",
-//!     StringContext::FileString { offset: Some(1024) }
-//! )?;
-//!
-//! // Get statistics
-//! let stats = tracker.get_statistics(None);
-//! println!("Suspicious strings found: {}", stats.suspicious_strings.len());
-//! # Ok(())
-//! # }
-//! ```
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![doc = include_str!("../README.md")]
 
 mod analyzer;
 mod categorizer;
@@ -42,15 +8,21 @@ mod patterns;
 mod tracker;
 mod types;
 
-// Re-export main types
 pub use analyzer::{DefaultStringAnalyzer, StringAnalysis, StringAnalyzer, SuspiciousIndicator};
-pub use categorizer::{Categorizer, CategoryRule, DefaultCategorizer, StringCategory};
+pub use categorizer::{
+    Categorizer, CategoryMatcher, CategoryRule, DefaultCategorizer, StringCategory,
+};
 pub use patterns::{DefaultPatternProvider, Pattern, PatternDef, PatternProvider};
 pub use tracker::{
-    StringContext, StringEntry, StringFilter, StringOccurrence, StringStatistics, StringTracker,
+    DateTimeRange, FileIdentity, StringContext, StringEntry, StringFilter, StringOccurrence,
+    StringStatistics, StringTracker,
 };
-pub use types::*;
+pub use types::{
+    AnalysisConfig, AnalysisError, AnalysisResult, DEFAULT_MAX_CATEGORIES_PER_STRING,
+    DEFAULT_MAX_INDICATORS_PER_STRING, DEFAULT_MAX_INPUT_BYTES, DEFAULT_MAX_OCCURRENCES_PER_STRING,
+    DEFAULT_MAX_SOURCE_BYTES, DEFAULT_MAX_UNIQUE_FILE_IDENTITIES_PER_STRING,
+    DEFAULT_MAX_UNIQUE_STRINGS, DEFAULT_SUSPICIOUS_ENTROPY,
+};
 
-// Version information
-/// Library version string
+/// Version of the crate selected at compile time.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
