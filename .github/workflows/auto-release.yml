@@ -37,6 +37,7 @@ jobs:
     with:
       bump: ${{ github.event.inputs.version_bump || 'auto' }}
       required-workflows: CI,Security
+      dispatch-workflows: release.yml
 
     # secrets:
     #   release-token: ${{ secrets.RELEASE_TOKEN }}
