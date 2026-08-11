@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed every dependency requirement to the latest stable release,
+  including `regex` 1.13.1, `chrono` 0.4.45, `serde` 1.0.229, and
+  `serde_json` 1.0.151. No API change.
+- Updated the README install snippet to the current 0.2.1 release.
+
 ### Fixed
 
 - Stage GitHub release assets from the canonical crates.io archive and verify
