@@ -47,21 +47,42 @@ from compilation and unit-test status:
 Do not publish private indicators or customer-derived examples as release test
 data.
 
+## Rehearse
+
+Run the release workflow as a dry run before cutting a release. It builds and
+tests every release target, generates the CycloneDX SBOM, packages the crate,
+and runs `cargo publish --dry-run`, without tagging, releasing, or publishing:
+
+```bash
+gh workflow run release.yml --ref main -f dry_run=true
+gh workflow run auto-release.yml --ref main -f dry_run=true
+```
+
+The auto-release dry run reports the version and tag the next release would
+use.
+
 ## Publish
 
 1. Merge the release change to `main` and wait for every required check.
-2. Create an annotated `vX.Y.Z` or `vX.Y.Z-prerelease` tag from the verified
-   `main` commit. Release tags with SemVer build metadata (`+...`) are not
+2. Let `auto-release.yml` cut the release once CI and Security pass on `main`
+   (a `feat:` or `fix:` commit since the last tag selects the bump), or create
+   an annotated `vX.Y.Z` or `vX.Y.Z-prerelease` tag from the verified `main`
+   commit yourself. Release tags with SemVer build metadata (`+...`) are not
    supported.
-3. Push the tag and let the protected release workflow validate and publish it.
-4. After crates.io publication succeeds, let the workflow create the GitHub
-   release with generated release notes and attach the exact published crate
-   archive plus its checksum. Review the generated notes against the curated
-   changelog and add missing compatibility context when necessary.
+3. The tag starts `release.yml`, which validates its provenance, builds and
+   tests every target, and publishes the crate. A version that is already on
+   crates.io is skipped rather than uploaded again, so the workflow can be
+   re-run safely.
+4. After crates.io publication succeeds, the workflow creates or updates the
+   GitHub release and attaches the exact published crate archive, its checksum,
+   the package listing, and the SBOM. Review the generated notes against the
+   curated changelog and add missing compatibility context when necessary.
 
-Publishing should use crates.io trusted publishing from a protected `crates-io`
-environment. Never place a long-lived registry token in repository files,
-workflow arguments, or logs.
+Publishing uses crates.io trusted publishing: the `publish` job in
+`release.yml` runs in the `crates-io` environment and exchanges its OIDC token
+for a short-lived crates.io token. No registry token is stored in the
+repository or its settings. Never place a long-lived registry token in
+repository files, workflow arguments, or logs.
 
 ## Verify
 

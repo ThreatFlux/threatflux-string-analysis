@@ -6,6 +6,7 @@
 /coverage/
 /dist/
 /release-artifacts/
+/sbom/
 /test-results/
 lcov.info
 *.profraw
