@@ -45,17 +45,24 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
+    # The reusable release job requests these scopes for GITHUB_TOKEN. With
+    # the GitHub App configured, the release commit, tag and GitHub Release
+    # are written with a repository-scoped App token instead.
     permissions:
-      actions: write # Dispatches release.yml when the release is cut with GITHUB_TOKEN.
+      actions: write # Dispatches release.yml when the release falls back to GITHUB_TOKEN.
       contents: write # Pushes the release commit and tag and creates the GitHub Release.
       pull-requests: write # Required by the reusable release job (release pull request mode).
-    uses: ThreatFlux/github_actions/.github/workflows/reusable-auto-release.yml@8633e03be96acd076b36bfdf7bec2345e6614c5c # v0.7.6
+    uses: ThreatFlux/github_actions/.github/workflows/reusable-auto-release.yml@eb9f3cf78c3899be0c4c9323d5cc86de5e1fdee8 # v0.7.7
     with:
       bump: ${{ github.event.inputs.version_bump || 'auto' }}
       # Only a manual dispatch can request a dry run; workflow_run always releases.
       dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
       required-workflows: CI,Security
-      # Used only when the release is cut with GITHUB_TOKEN. A tag pushed by
-      # the GitHub App starts release.yml through its push trigger, so the
-      # reusable workflow does not dispatch it again.
+      # The threatflux-automation GitHub App cuts the release, so its tag push
+      # starts release.yml through the push trigger and the reusable workflow
+      # skips the dispatch. release.yml is dispatched only if a release ever
+      # falls back to GITHUB_TOKEN, whose tag push starts no workflow.
       dispatch-workflows: release.yml
+      github-app-id: ${{ vars.TF_AUTOMATION_APP_ID }}
+    secrets:
+      github-app-private-key: ${{ secrets.TF_AUTOMATION_APP_PRIVATE_KEY }}
