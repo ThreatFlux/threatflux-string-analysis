@@ -8,9 +8,11 @@ workflow.
 
 1. Choose the version from public API, behavior, MSRV, pattern-policy, and
    serialization compatibility changes. A pre-1.0 minor bump can be breaking.
-2. Update `Cargo.toml`, README installation snippets, and migration guidance.
-   Move release notes from `Unreleased` into a dated section in `CHANGELOG.md`
-   and update its comparison links.
+2. Update README installation snippets and migration guidance. Move release
+   notes from `Unreleased` into a dated `## [X.Y.Z] - YYYY-MM-DD` section in
+   `CHANGELOG.md` and update its comparison links; that section becomes the
+   GitHub release notes. `auto-release.yml` bumps the version in `Cargo.toml`
+   and `Cargo.lock`; bump them yourself only when you tag a release by hand.
 3. Confirm the package description, license, repository and documentation URLs,
    categories, keywords, and include set.
 4. Run the complete matrix in [`../TESTING.md`](../TESTING.md).
@@ -74,9 +76,11 @@ use.
    crates.io is skipped rather than uploaded again, so the workflow can be
    re-run safely.
 4. After crates.io publication succeeds, the workflow creates or updates the
-   GitHub release and attaches the exact published crate archive, its checksum,
-   the package listing, and the SBOM. Review the generated notes against the
-   curated changelog and add missing compatibility context when necessary.
+   GitHub release, attaches the exact published crate archive, its checksum,
+   the package listing, and the SBOM, and records a build provenance
+   attestation for the crate and the SBOM. The release notes are the
+   `CHANGELOG.md` section for the version; without one, the notes
+   auto-release wrote are kept, so add missing compatibility context by hand.
 
 Publishing uses crates.io trusted publishing: the `publish` job in
 `release.yml` runs in the `crates-io` environment and exchanges its OIDC token
@@ -92,6 +96,13 @@ repository files, workflow arguments, or logs.
 - Re-run a minimal tracking and filtered-statistics program against the
   published package.
 - Verify the GitHub release references the immutable source tag.
+- Verify the attestation for the downloaded crate archive:
+
+  ```bash
+  gh attestation verify threatflux-string-analysis-X.Y.Z.crate \
+    --repo ThreatFlux/threatflux-string-analysis \
+    --signer-workflow ThreatFlux/threatflux-string-analysis/.github/workflows/release.yml
+  ```
 - Confirm changelog comparison links point to the correct tags.
 
 If crates.io accepts a version and artifact upload or GitHub Release creation

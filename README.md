@@ -33,10 +33,10 @@ validation by a security analyst.
 
 ```toml
 [dependencies]
-threatflux-string-analysis = "0.2.2"
+threatflux-string-analysis = "0.2.3"
 ```
 
-Version 0.2.2 requires Rust 1.95.0 or newer.
+Version 0.2.3 requires Rust 1.95.0 or newer.
 
 ## Quick start
 
