@@ -3,9 +3,10 @@
 MSRV := 1.95.0
 STABLE := 1.97.1
 MARKDOWN_TARGET_DIR := target/markdown-doctests
+SBOM_NAME := threatflux-string-analysis
 
 .PHONY: help fmt fmt-check check lint test test-doc markdown msrv-check docs examples
-.PHONY: coverage audit deny semver package publish-dry-run ci clean
+.PHONY: coverage audit deny semver package publish-dry-run sbom ci clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -65,6 +66,14 @@ package: ## Build and verify the crates.io package
 
 publish-dry-run: ## Validate crates.io publication without uploading
 	cargo publish --dry-run --allow-dirty --locked
+
+sbom: ## Generate a CycloneDX SBOM in sbom/ (requires cargo-cyclonedx)
+	@mkdir -p sbom
+	@rm -f sbom/*.json $(SBOM_NAME)-sbom.json
+	cargo cyclonedx --manifest-path Cargo.toml --all-features --format json --spec-version 1.5 --override-filename $(SBOM_NAME)-sbom
+	@mv $(SBOM_NAME)-sbom.json sbom/
+	@test -s sbom/$(SBOM_NAME)-sbom.json
+	@echo "SBOM written to sbom/$(SBOM_NAME)-sbom.json"
 
 ci: fmt-check check lint test test-doc markdown msrv-check docs examples audit deny package ## Run the complete local CI matrix
 

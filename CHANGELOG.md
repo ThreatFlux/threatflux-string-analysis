@@ -13,6 +13,16 @@ All notable changes to this project are documented here. The format follows
   `serde_json` 1.0.151. No API change.
 - Updated the README install snippet to the current 0.2.1 release.
 
+### Release engineering
+
+- `release.yml` accepts a `dry_run` dispatch input that builds and tests all
+  six release targets, generates a CycloneDX SBOM, and runs
+  `cargo publish --dry-run` without publishing anything.
+- Publishing uses crates.io trusted publishing only; the long-lived registry
+  token fallback is removed, and a version that is already published is
+  skipped so a release can be re-run.
+- GitHub releases attach the SBOM next to the published crate archive.
+
 ### Fixed
 
 - Stage GitHub release assets from the canonical crates.io archive and verify
