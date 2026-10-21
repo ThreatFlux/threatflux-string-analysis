@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 MSRV := 1.95.0
-STABLE := 1.97.1
+STABLE := 1.99.1
 MARKDOWN_TARGET_DIR := target/markdown-doctests
 SBOM_NAME := threatflux-string-analysis
 
