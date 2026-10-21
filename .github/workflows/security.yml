@@ -18,7 +18,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_STABLE: 1.97.1
+  RUST_STABLE: 1.99.1
 
 jobs:
   supply-chain:
@@ -38,9 +38,9 @@ jobs:
 
       - name: Install supply-chain tools
         # The pinned installer commit also pins tool versions and checksums.
-        uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-audit,cargo-deny
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
 
       - name: Check RustSec advisories
         run: cargo audit --deny warnings

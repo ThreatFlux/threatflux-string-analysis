@@ -1,0 +1,9 @@
+# Stable dependency and security rollup
+
+Reviewed 2026-10-21 against the exact fetched default `main`. All paginated open pull requests and code-scanning alerts were inspected: **0 open PRs and 0 open alerts**. This is an API inventory result, not a claim that future scans or dependency audits cannot find vulnerabilities. No alert dismissal or suppression was performed.
+
+The development/CI compiler is now official stable Rust **1.99.1** (official stable manifest date 2026-10-15); consumer MSRV stays **1.95.0**. All five direct/dev dependency declarations were checked against current stable non-yanked crates.io releases. This refresh updates thiserror and serde_json and regenerates the lockfile. Action pins retain current stable releases, with taiki-e/install-action refreshed to v2.87.29. Coverage, audit, deny and SBOM tool releases are pinned explicitly.
+
+Validation uses the repository's complete `make ci` target (formatting, all targets/features, strict Clippy, tests/doctests, Markdown Rust examples, MSRV check/tests, strict rustdoc, examples, cargo audit/deny and package verification), plus workflow lint. This repository has no repository-owned hook installer/hook files; no hooks are bypassed or replaced with an unrelated repository's policy. The complete gate passed on this branch, including Rust 1.95 consumption/tests and cargo package build verification; Actionlint and YAML parsing/style checks also passed. The existing example suite reports two ignored cases; no tests were newly ignored. No Jira tickets, merge, deployment or publishing occurs in this update.
+
+Primary verification sources: [official stable Rust manifest](https://static.rust-lang.org/dist/channel-rust-stable.toml), [thiserror sparse index](https://index.crates.io/th/is/thiserror), [serde_json sparse index](https://index.crates.io/se/rd/serde_json), and each Action's official release/tag metadata.
