@@ -30,14 +30,7 @@ test-doc: ## Run crate documentation tests
 	cargo test --doc --all-features --locked
 
 markdown: ## Compile Rust blocks in README and guides
-	CARGO_TARGET_DIR=$(MARKDOWN_TARGET_DIR) cargo +$(STABLE) build --all-features --locked
-	@set -eu; \
-	rlib=$$(ls -t $(MARKDOWN_TARGET_DIR)/debug/deps/libthreatflux_string_analysis-*.rlib | head -n 1); \
-	for document in README.md docs/*.md; do \
-		rustup run $(STABLE) rustdoc --test "$$document" --edition 2024 \
-			--extern threatflux_string_analysis="$$rlib" \
-			-L dependency=$(MARKDOWN_TARGET_DIR)/debug/deps; \
-	done
+	python3 scripts/check_markdown.py --package threatflux-string-analysis --toolchain $(STABLE) --target-dir $(MARKDOWN_TARGET_DIR)
 
 msrv-check: ## Check and test with the minimum Rust version
 	cargo +$(MSRV) check --all-targets --all-features --locked
