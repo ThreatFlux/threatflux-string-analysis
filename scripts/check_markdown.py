@@ -1,64 +1,31 @@
-#!/usr/bin/env python3
-"""Compile README/guide examples using Cargo's stable artifact-message protocol."""
+"""Resolve exact Cargo libraries and emit NUL-delimited rustdoc arguments."""
 
 import argparse
 import json
 import os
-from pathlib import Path
-import subprocess
 import sys
+from pathlib import Path
 
 
-def build_artifacts(root, arguments):
-    environment = dict(
-        os.environ, CARGO_TARGET_DIR=str((root / arguments.target_dir).resolve())
-    )
-    command = [
-        "cargo",
-        f"+{arguments.toolchain}",
-        "build",
-        "--all-features",
-        "--locked",
-        "--message-format=json",
-    ]
-    if arguments.examples:
-        command.append("--examples")
+def build_artifacts(path):
     artifacts = []
-    with subprocess.Popen(
-        command, cwd=root, env=environment, stdout=subprocess.PIPE, text=True
-    ) as process:
-        for line in process.stdout:
-            if not line.startswith("{"):
-                print(line, end="", file=sys.stderr)
-                continue
-            message = json.loads(line)
-            if message.get("reason") == "compiler-artifact":
-                artifacts.append(message)
-            elif message.get("reason") == "compiler-message":
-                print(
-                    message["message"].get("rendered") or message["message"]["message"],
-                    file=sys.stderr,
-                )
-        if process.wait():
-            raise SystemExit(process.returncode)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("{"):
+            print(line, file=sys.stderr)
+            continue
+        message = json.loads(line)
+        if message.get("reason") == "compiler-artifact":
+            artifacts.append(message)
+        elif message.get("reason") == "compiler-message":
+            print(
+                message["message"].get("rendered") or message["message"]["message"],
+                file=sys.stderr,
+            )
     return artifacts
 
 
 def packages(root, arguments):
-    metadata = json.loads(
-        subprocess.check_output(
-            [
-                "cargo",
-                f"+{arguments.toolchain}",
-                "metadata",
-                "--all-features",
-                "--locked",
-                "--format-version=1",
-            ],
-            cwd=root,
-            text=True,
-        )
-    )
+    metadata = json.loads(arguments.metadata.read_text(encoding="utf-8"))
     owned = [
         package
         for package in metadata["packages"]
@@ -109,15 +76,14 @@ def library(artifacts, package, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package", required=True)
-    parser.add_argument("--toolchain", required=True)
-    parser.add_argument("--target-dir", required=True, type=Path)
+    parser.add_argument("--metadata", required=True, type=Path)
+    parser.add_argument("--artifacts", required=True, type=Path)
+    parser.add_argument("--document", required=True, type=Path)
     parser.add_argument("--extern", action="append", default=[])
-    parser.add_argument("--examples", action="store_true")
-    parser.add_argument("--recursive", action="store_true")
     arguments = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     selected = packages(root, arguments)
-    artifacts = build_artifacts(root, arguments)
+    artifacts = build_artifacts(arguments.artifacts)
     externs = {
         name: library(artifacts, package, name) for name, package in selected.items()
     }
@@ -128,27 +94,14 @@ def main():
             for filename in artifact["filenames"]
         }
     )
-    documents = (
-        (root / "docs").rglob("*.md")
-        if arguments.recursive
-        else (root / "docs").glob("*.md")
+    command = ["--test", str(arguments.document.resolve()), "--edition", "2024"]
+    for name, artifact in externs.items():
+        command.extend(["--extern", f"{name}={artifact}"])
+    for directory in dependency_dirs:
+        command.extend(["-L", f"dependency={directory}"])
+    sys.stdout.buffer.write(
+        b"\0".join(os.fsencode(argument) for argument in command) + b"\0"
     )
-    for document in [root / "README.md", *sorted(documents)]:
-        command = [
-            "rustup",
-            "run",
-            arguments.toolchain,
-            "rustdoc",
-            "--test",
-            str(document),
-            "--edition",
-            "2024",
-        ]
-        for name, artifact in externs.items():
-            command.extend(["--extern", f"{name}={artifact}"])
-        for directory in dependency_dirs:
-            command.extend(["-L", f"dependency={directory}"])
-        subprocess.run(command, cwd=root, check=True)
 
 
 if __name__ == "__main__":

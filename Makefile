@@ -30,7 +30,16 @@ test-doc: ## Run crate documentation tests
 	cargo test --doc --all-features --locked
 
 markdown: ## Compile Rust blocks in README and guides
-	python3 scripts/check_markdown.py --package threatflux-string-analysis --toolchain $(STABLE) --target-dir $(MARKDOWN_TARGET_DIR)
+	@mkdir -p "$(MARKDOWN_TARGET_DIR)"
+	CARGO_TARGET_DIR="$(MARKDOWN_TARGET_DIR)" cargo +$(STABLE) metadata --all-features --locked --format-version=1 > "$(MARKDOWN_TARGET_DIR)/metadata.json"
+	CARGO_TARGET_DIR="$(MARKDOWN_TARGET_DIR)" cargo +$(STABLE) build --all-features --locked --message-format=json > "$(MARKDOWN_TARGET_DIR)/artifacts.json" || { cat "$(MARKDOWN_TARGET_DIR)/artifacts.json" >&2; exit 1; }
+	@set -eu; \
+	for document in README.md docs/*.md; do \
+		python3 scripts/check_markdown.py --package threatflux-string-analysis --metadata "$(MARKDOWN_TARGET_DIR)/metadata.json" \
+			--artifacts "$(MARKDOWN_TARGET_DIR)/artifacts.json" --document "$$document" > "$(MARKDOWN_TARGET_DIR)/arguments.bin"; \
+		test -s "$(MARKDOWN_TARGET_DIR)/arguments.bin"; \
+		xargs -0 rustup run "$(STABLE)" rustdoc < "$(MARKDOWN_TARGET_DIR)/arguments.bin"; \
+	done
 
 msrv-check: ## Check and test with the minimum Rust version
 	cargo +$(MSRV) check --all-targets --all-features --locked
