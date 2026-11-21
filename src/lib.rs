@@ -12,6 +12,8 @@ pub use analyzer::{DefaultStringAnalyzer, StringAnalysis, StringAnalyzer, Suspic
 pub use categorizer::{
     Categorizer, CategoryMatcher, CategoryRule, DefaultCategorizer, StringCategory,
 };
+/// Date and time types used by the tracker, from the maintained `sad-chrono` crate.
+pub use chrono;
 pub use patterns::{DefaultPatternProvider, Pattern, PatternDef, PatternProvider};
 pub use tracker::{
     DateTimeRange, FileIdentity, StringContext, StringEntry, StringFilter, StringOccurrence,

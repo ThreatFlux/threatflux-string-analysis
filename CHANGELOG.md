@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the unmaintained `chrono` dependency with `sad-chrono` 0.5.1
+  (RUSTSEC-2026-0543). Callers constructing tracker timestamps must import
+  `threatflux_string_analysis::chrono` for type compatibility. Serialized
+  timestamps keep the existing UTC string format.
+- Updated `regex` to 1.13.2 and refreshed its locked dependencies.
+
 ## [0.2.3] - 2026-10-06
 
 No library API or behavior change.

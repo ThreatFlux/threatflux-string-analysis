@@ -1,4 +1,4 @@
-use chrono::{Duration, TimeZone, Utc};
+use threatflux_string_analysis::chrono::{self, Duration, TimeZone, Utc};
 use threatflux_string_analysis::{
     AnalysisConfig, AnalysisError, AnalysisResult, StringContext, StringFilter, StringOccurrence,
     StringTracker,

@@ -1,8 +1,8 @@
-use chrono::{TimeZone, Utc};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread;
+use threatflux_string_analysis::chrono::{TimeZone, Utc};
 use threatflux_string_analysis::{
     AnalysisConfig, AnalysisError, AnalysisResult, Categorizer, CategoryRule, DefaultCategorizer,
     DefaultStringAnalyzer, Pattern, StringAnalysis, StringAnalyzer, StringCategory, StringContext,
@@ -299,6 +299,24 @@ fn value_source_and_context_byte_limits_are_enforced_before_mutation() {
         tracker.get_statistics(None).unwrap().total_unique_strings,
         10
     );
+}
+
+#[test]
+fn legacy_timestamp_json_round_trips_as_utc() -> Result<(), serde_json::Error> {
+    let occurrence_json = serde_json::json!({
+        "file_path": "a",
+        "file_hash": "ha",
+        "tool_name": "tool",
+        "timestamp": "2024-01-01T01:30:00.120+01:30",
+        "context": {"FileString": {"offset": null}},
+    });
+    let occurrence: StringOccurrence = serde_json::from_value(occurrence_json.clone())?;
+    assert_eq!(occurrence.timestamp.timestamp_subsec_millis(), 120);
+
+    let mut expected = occurrence_json;
+    expected["timestamp"] = serde_json::json!("2024-01-01T00:00:00.120Z");
+    assert_eq!(serde_json::to_value(&occurrence)?, expected);
+    Ok(())
 }
 
 #[test]

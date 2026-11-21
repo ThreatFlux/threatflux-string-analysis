@@ -66,6 +66,12 @@ caller-provided UTC timestamp, for replayable imports and boundary tests.
 Applications should normalize source timestamps before ingestion and reject
 values outside their own acceptable time window.
 
+Use `threatflux_string_analysis::chrono` to construct timestamps for the
+tracker. This re-export uses the maintained `sad-chrono` crate. Callers that
+previously imported upstream `chrono` must switch the import for values passed
+to the tracker because the two crates define distinct Rust types. Serialized
+UTC timestamps retain the same RFC 3339 string format.
+
 `track_strings` and its `track_strings_from_results` compatibility alias process
 a slice in order. Batch ingestion returns an error when an item cannot be
 accepted. It is not a transaction: observations accepted before the error
