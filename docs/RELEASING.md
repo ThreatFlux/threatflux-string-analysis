@@ -11,8 +11,9 @@ workflow.
 2. Update README installation snippets and migration guidance. Move release
    notes from `Unreleased` into a dated `## [X.Y.Z] - YYYY-MM-DD` section in
    `CHANGELOG.md` and update its comparison links; that section becomes the
-   GitHub release notes. `auto-release.yml` bumps the version in `Cargo.toml`
-   and `Cargo.lock`; bump them yourself only when you tag a release by hand.
+   GitHub release notes. `auto-release.yml` proposes the version bump in
+   `Cargo.toml` and `Cargo.lock`. Bump them yourself only when you tag a release
+   by hand.
 3. Confirm the package description, license, repository and documentation URLs,
    categories, keywords, and include set.
 4. Run the complete matrix in [`../TESTING.md`](../TESTING.md).
@@ -66,16 +67,21 @@ use.
 ## Publish
 
 1. Merge the release change to `main` and wait for every required check.
-2. Let `auto-release.yml` cut the release once CI and Security pass on `main`
-   (a `feat:` or `fix:` commit since the last tag selects the bump), or create
-   an annotated `vX.Y.Z` or `vX.Y.Z-prerelease` tag from the verified `main`
-   commit yourself. Release tags with SemVer build metadata (`+...`) are not
-   supported.
-3. The tag starts `release.yml`, which validates its provenance, builds and
+2. Once CI and Security pass on `main`, `auto-release.yml` opens a release
+   pull request for the version bump. The strongest conventional commit since
+   the last tag determines the bump. A `BREAKING CHANGE` footer or `!` marker
+   selects a major bump, including from a pre-1.0 version.
+3. Review and merge the release pull request using the normal owner approval
+   process. Once CI and Security pass on its merge commit, `auto-release.yml`
+   tags the manifest version. A maintainer can also create an annotated
+   `vX.Y.Z` or `vX.Y.Z-prerelease` tag from a verified `main` commit whose
+   manifest already declares that version. Release tags with SemVer build
+   metadata (`+...`) are not supported.
+4. The tag starts `release.yml`, which validates its provenance, builds and
    tests every target, and publishes the crate. A version that is already on
    crates.io is skipped rather than uploaded again, so the workflow can be
    re-run safely.
-4. After crates.io publication succeeds, the workflow creates or updates the
+5. After crates.io publication succeeds, the workflow creates or updates the
    GitHub release, attaches the exact published crate archive, its checksum,
    the package listing, and the SBOM, and records a build provenance
    attestation for the crate and the SBOM. The release notes are the
