@@ -1,4 +1,4 @@
-//! UTC timestamps with the tracker’s existing serialized representation.
+//! UTC timestamps with the tracker's existing serialized representation.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::fmt;
@@ -43,9 +43,21 @@ impl Timestamp {
         UtcDateTime::from_unix_timestamp_nanos(nanoseconds).map(Self::from)
     }
 
+    /// Return the Unix timestamp rounded down to a whole second.
+    ///
+    /// A leap second shares the whole-second value of the second preceding it.
+    pub const fn unix_timestamp(self) -> i64 {
+        self.seconds
+    }
+
     /// Return the fractional nanoseconds within the current second.
     pub const fn nanosecond(self) -> u32 {
         self.nanoseconds % NANOS_PER_SECOND
+    }
+
+    /// Return whether the timestamp represents a leap second.
+    pub const fn is_leap_second(self) -> bool {
+        self.nanoseconds >= NANOS_PER_SECOND
     }
 }
 
@@ -76,15 +88,7 @@ impl FromStr for Timestamp {
         let offset = parsed_time
             .parse_items(rest.trim_start().as_bytes(), TIME)
             .map_err(|_| ParseTimestampError)?;
-        let offset = std::str::from_utf8(offset)
-            .map_err(|_| ParseTimestampError)?
-            .trim_start();
-        let offset = if offset.eq_ignore_ascii_case("z") || offset.eq_ignore_ascii_case("utc") {
-            UtcOffset::UTC
-        } else {
-            UtcOffset::parse(offset, OFFSET).map_err(|_| ParseTimestampError)?
-        };
-
+        let offset = parse_offset(offset)?;
         let leap_second = parsed_time.second() == Some(60);
         if leap_second {
             parsed_time.set_second(59).ok_or(ParseTimestampError)?;
@@ -101,6 +105,20 @@ impl FromStr for Timestamp {
     }
 }
 
+fn parse_offset(value: &[u8]) -> Result<UtcOffset, ParseTimestampError> {
+    let value = std::str::from_utf8(value)
+        .map_err(|_| ParseTimestampError)?
+        .trim_start();
+    if value.eq_ignore_ascii_case("z") || value.eq_ignore_ascii_case("utc") {
+        return Ok(UtcOffset::UTC);
+    }
+    let offset = UtcOffset::parse(value, OFFSET).map_err(|_| ParseTimestampError)?;
+    if offset.whole_hours().unsigned_abs() >= 24 {
+        return Err(ParseTimestampError);
+    }
+    Ok(offset)
+}
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let utc = UtcDateTime::from_unix_timestamp(self.seconds).map_err(|_| fmt::Error)?;
@@ -111,7 +129,7 @@ impl fmt::Display for Timestamp {
             write!(formatter, "{year:+05}")?;
         }
         let (hour, minute, second) = utc.as_hms();
-        let second = second + u8::from(self.nanoseconds >= NANOS_PER_SECOND);
+        let second = second + u8::from(self.is_leap_second());
         write!(
             formatter,
             "-{:02}-{day:02}T{hour:02}:{minute:02}:{second:02}",

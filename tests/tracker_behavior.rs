@@ -321,6 +321,7 @@ fn legacy_timestamp_json_round_trips_as_utc() -> Result<(), serde_json::Error> {
 #[test]
 fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json::Error> {
     let inputs = [
+        "-262143-01-01T00:00:00Z",
         "1969-12-31T23:59:59.999999999Z",
         "1970-01-01T00:00:00Z",
         "2024-01-01T00:00:00.120Z",
@@ -330,6 +331,7 @@ fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json
         "2024-01-01T00:00:60.001Z",
         "2024-01-01T00:01:00Z",
         "+10000-01-01T00:00:00Z",
+        "+262142-12-31T23:59:59.999999999Z",
     ];
     let mut previous = None;
     for input in inputs {
@@ -352,6 +354,24 @@ fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json
     );
     assert!("2024-01-01T03:00:00".parse::<Timestamp>().is_err());
     assert!("2024-02-30T03:00:00Z".parse::<Timestamp>().is_err());
+    assert!("2024-01-01T03:00:00+24:00".parse::<Timestamp>().is_err());
+    assert_eq!(
+        "2024-01-01T02:30:00-00:30"
+            .parse::<Timestamp>()
+            .unwrap()
+            .to_string(),
+        "2024-01-01T03:00:00Z"
+    );
+
+    let pre_epoch = "1969-12-31T23:59:59.500Z".parse::<Timestamp>().unwrap();
+    assert_eq!(pre_epoch.unix_timestamp(), -1);
+    assert_eq!(pre_epoch.nanosecond(), 500_000_000);
+    assert!(!pre_epoch.is_leap_second());
+    let leap = "2024-01-01T00:00:60.123Z".parse::<Timestamp>().unwrap();
+    let nominal = "2024-01-01T00:00:59Z".parse::<Timestamp>().unwrap();
+    assert_eq!(leap.unix_timestamp(), nominal.unix_timestamp());
+    assert_eq!(leap.nanosecond(), 123_000_000);
+    assert!(leap.is_leap_second());
     Ok(())
 }
 
