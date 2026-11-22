@@ -6,11 +6,11 @@ use crate::analyzer::{
 };
 use crate::categorizer::{Categorizer, DefaultCategorizer, StringCategory, validate_category};
 use crate::patterns::{DefaultPatternProvider, PatternProvider};
+use crate::timestamp::Timestamp;
 use crate::types::{
     AnalysisConfig, AnalysisError, AnalysisResult, MAX_DESCRIPTION_BYTES, MAX_REGEX_BYTES,
     compact_string, regex_error_reason, validate_identifier,
 };
-use chrono::{DateTime, Utc};
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, Reverse};
@@ -28,7 +28,7 @@ const MIN_RELATED_SCORE: f64 = 0.30;
 type StringEntryMap = Arc<Mutex<BTreeMap<String, StringEntry>>>;
 
 /// Inclusive range applied to an entry's `first_seen` timestamp.
-pub type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
+pub type DateTimeRange = (Timestamp, Timestamp);
 
 /// Context in which a string was observed.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -176,7 +176,7 @@ pub struct StringOccurrence {
     /// Tool that produced the observation.
     pub tool_name: String,
     /// Caller-supplied event timestamp.
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Timestamp,
     /// Context in which the value was observed.
     pub context: StringContext,
 }
@@ -187,7 +187,7 @@ impl StringOccurrence {
         file_path: impl Into<String>,
         file_hash: impl Into<String>,
         tool_name: impl Into<String>,
-        timestamp: DateTime<Utc>,
+        timestamp: Timestamp,
         context: StringContext,
     ) -> Self {
         let mut context = context;
@@ -223,9 +223,9 @@ pub struct StringEntry {
     /// Actual string value.
     pub value: String,
     /// Earliest caller-supplied event timestamp.
-    pub first_seen: DateTime<Utc>,
+    pub first_seen: Timestamp,
     /// Latest caller-supplied event timestamp.
-    pub last_seen: DateTime<Utc>,
+    pub last_seen: Timestamp,
     /// Saturating total observation count, including evicted occurrence details.
     pub total_occurrences: u64,
     /// Bounded, ordered set of distinct source identities.
@@ -382,7 +382,7 @@ impl StringTracker {
         self.validate_tracking_fields(value, file_path, file_hash, tool_name, &context)?;
         self.track_occurrence(
             value,
-            StringOccurrence::new(file_path, file_hash, tool_name, Utc::now(), context),
+            StringOccurrence::new(file_path, file_hash, tool_name, Timestamp::now(), context),
         )
     }
 
@@ -485,7 +485,7 @@ impl StringTracker {
             let context = inferred_context(value, &categories, self.config.max_source_bytes)?;
             self.track_occurrence_with_categories(
                 value,
-                StringOccurrence::new(file_path, file_hash, tool_name, Utc::now(), context),
+                StringOccurrence::new(file_path, file_hash, tool_name, Timestamp::now(), context),
                 Some(categories),
             )?;
         }
@@ -1394,7 +1394,7 @@ mod tests {
                     file_path,
                     file_hash,
                     tool_name,
-                    timestamp: Utc::now(),
+                    timestamp: Timestamp::now(),
                     context: StringContext::Import { library },
                 },
             )
