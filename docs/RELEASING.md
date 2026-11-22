@@ -71,6 +71,16 @@ use.
    pull request for the version bump. The strongest conventional commit since
    the last tag determines the bump. A `BREAKING CHANGE` footer or `!` marker
    selects a major bump, including from a pre-1.0 version.
+
+   If the range since the last tag contains only non-breaking `chore:` or
+   `docs:` commits, the automatic run skips the version bump. After CI and
+   Security pass on `main`, dispatch `auto-release.yml` with an explicit bump
+   to propose a maintenance release. This command requests a patch release.
+
+   ```bash
+   gh workflow run auto-release.yml --ref main -f version_bump=patch
+   ```
+
 3. Review and merge the release pull request using the normal owner approval
    process. Once CI and Security pass on its merge commit, `auto-release.yml`
    tags the manifest version. A maintainer can also create an annotated
