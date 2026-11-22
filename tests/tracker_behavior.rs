@@ -343,7 +343,11 @@ fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json
         }
         previous = Some(timestamp);
     }
+    Ok(())
+}
 
+#[test]
+fn date_range_timestamps_normalize_utc_offsets() -> Result<(), serde_json::Error> {
     let filter_json = serde_json::json!({
         "date_range": ["2024-01-01T02:00:00-0100", "2024-01-01T03:00:00.123456789Z"]
     });
@@ -362,7 +366,11 @@ fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json
             .to_string(),
         "2024-01-01T03:00:00Z"
     );
+    Ok(())
+}
 
+#[test]
+fn timestamp_components_distinguish_pre_epoch_and_leap_seconds() {
     let pre_epoch = "1969-12-31T23:59:59.500Z".parse::<Timestamp>().unwrap();
     assert_eq!(pre_epoch.unix_timestamp(), -1);
     assert_eq!(pre_epoch.nanosecond(), 500_000_000);
@@ -372,7 +380,6 @@ fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json
     assert_eq!(leap.unix_timestamp(), nominal.unix_timestamp());
     assert_eq!(leap.nanosecond(), 123_000_000);
     assert!(leap.is_leap_second());
-    Ok(())
 }
 
 #[test]
