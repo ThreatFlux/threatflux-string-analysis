@@ -1,13 +1,11 @@
-use chrono::{TimeZone, Utc};
 use threatflux_string_analysis::{
-    AnalysisResult, StringContext, StringFilter, StringOccurrence, StringTracker,
+    AnalysisResult, StringContext, StringFilter, StringOccurrence, StringTracker, Timestamp,
 };
 
 fn main() -> AnalysisResult<()> {
     let tracker = StringTracker::new();
-    let event_time = Utc
-        .with_ymd_and_hms(2026, 7, 15, 10, 30, 0)
-        .single()
+    let event_time = "2026-07-15T10:30:00Z"
+        .parse::<Timestamp>()
         .expect("example timestamp is valid");
 
     tracker.track_occurrence(

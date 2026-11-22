@@ -66,6 +66,27 @@ caller-provided UTC timestamp, for replayable imports and boundary tests.
 Applications should normalize source timestamps before ingestion and reject
 values outside their own acceptable time window.
 
+Version 1.0 replaces the public `chrono::DateTime<Utc>` type with
+`threatflux_string_analysis::Timestamp` in occurrences, entries, and date
+ranges. Use `Timestamp::now()` for the current time, parse an RFC 3339 string
+for a specific time, or call `Timestamp::from_unix_timestamp_nanos` for a
+Unix timestamp in nanoseconds. Callers migrating an existing Chrono value can
+parse its RFC 3339 string so leap seconds retain their original precision.
+
+```rust
+use threatflux_string_analysis::{DateTimeRange, Timestamp};
+
+let start = "2024-01-01T01:30:00.120+01:30".parse::<Timestamp>()?;
+let end = "2024-01-02T00:00:00Z".parse::<Timestamp>()?;
+let range: DateTimeRange = (start, end);
+assert_eq!(range.0.to_string(), "2024-01-01T00:00:00.120Z");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+Serialized timestamps retain the UTC string format with zero, three, six, or
+nine fractional digits. Previously serialized timestamps with signed expanded
+years or leap seconds remain readable.
+
 `track_strings` and its `track_strings_from_results` compatibility alias process
 a slice in order. Batch ingestion returns an error when an item cannot be
 accepted. It is not a transaction: observations accepted before the error

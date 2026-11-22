@@ -70,6 +70,9 @@ pattern.
 
 ## Review
 
+Before merging, obtain approval on the current revision from an independent
+reviewer listed in the repository's `.github/CODEOWNERS` file.
+
 Maintainers may request changes for correctness, safety, API consistency,
 documentation, tests, false-positive risk, or release compatibility. A pull
 request may be closed if it becomes inactive or diverges from project scope;

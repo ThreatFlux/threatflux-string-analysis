@@ -1,10 +1,9 @@
-use chrono::{Duration, TimeZone, Utc};
 use threatflux_string_analysis::{
     AnalysisConfig, AnalysisError, AnalysisResult, StringContext, StringFilter, StringOccurrence,
-    StringTracker,
+    StringTracker, Timestamp,
 };
 
-fn occurrence(path: &str, hash: &str, timestamp: chrono::DateTime<Utc>) -> StringOccurrence {
+fn occurrence(path: &str, hash: &str, timestamp: Timestamp) -> StringOccurrence {
     StringOccurrence::new(
         path,
         hash,
@@ -17,8 +16,8 @@ fn occurrence(path: &str, hash: &str, timestamp: chrono::DateTime<Utc>) -> Strin
 #[test]
 fn paths_hashes_regex_and_first_seen_ranges_filter_correctly() -> AnalysisResult<()> {
     let tracker = StringTracker::new();
-    let first = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
-    let second = first + Duration::days(1);
+    let first = "2025-01-01T00:00:00Z".parse().unwrap();
+    let second = "2025-01-02T00:00:00Z".parse().unwrap();
     tracker.track_occurrence("alpha", occurrence("/path/a", "hash_a", first))?;
     tracker.track_occurrence("beta", occurrence("/path/b", "hash_b", second))?;
 
@@ -106,10 +105,11 @@ fn malformed_and_contradictory_filters_are_rejected() {
             ..
         })
     ));
-    let now = Utc::now();
+    let earlier = Timestamp::from_unix_timestamp_nanos(0).unwrap();
+    let later = Timestamp::from_unix_timestamp_nanos(1).unwrap();
     assert!(matches!(
         tracker.get_statistics(Some(&StringFilter {
-            date_range: Some((now, now - Duration::seconds(1))),
+            date_range: Some((later, earlier)),
             ..StringFilter::default()
         })),
         Err(AnalysisError::InvalidFilter {

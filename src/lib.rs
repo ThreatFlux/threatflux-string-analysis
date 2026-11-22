@@ -5,6 +5,7 @@
 mod analyzer;
 mod categorizer;
 mod patterns;
+mod timestamp;
 mod tracker;
 mod types;
 
@@ -13,6 +14,7 @@ pub use categorizer::{
     Categorizer, CategoryMatcher, CategoryRule, DefaultCategorizer, StringCategory,
 };
 pub use patterns::{DefaultPatternProvider, Pattern, PatternDef, PatternProvider};
+pub use timestamp::{ParseTimestampError, Timestamp};
 pub use tracker::{
     DateTimeRange, FileIdentity, StringContext, StringEntry, StringFilter, StringOccurrence,
     StringStatistics, StringTracker,

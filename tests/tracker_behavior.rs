@@ -1,4 +1,3 @@
-use chrono::{TimeZone, Utc};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};
@@ -6,7 +5,7 @@ use std::thread;
 use threatflux_string_analysis::{
     AnalysisConfig, AnalysisError, AnalysisResult, Categorizer, CategoryRule, DefaultCategorizer,
     DefaultStringAnalyzer, Pattern, StringAnalysis, StringAnalyzer, StringCategory, StringContext,
-    StringOccurrence, StringTracker, SuspiciousIndicator,
+    StringFilter, StringOccurrence, StringTracker, SuspiciousIndicator, Timestamp,
 };
 
 fn context() -> StringContext {
@@ -302,6 +301,88 @@ fn value_source_and_context_byte_limits_are_enforced_before_mutation() {
 }
 
 #[test]
+fn legacy_timestamp_json_round_trips_as_utc() -> Result<(), serde_json::Error> {
+    let occurrence_json = serde_json::json!({
+        "file_path": "a",
+        "file_hash": "ha",
+        "tool_name": "tool",
+        "timestamp": "2024-01-01T01:30:00.120+01:30",
+        "context": {"FileString": {"offset": null}},
+    });
+    let occurrence: StringOccurrence = serde_json::from_value(occurrence_json.clone())?;
+    assert_eq!(occurrence.timestamp.nanosecond(), 120_000_000);
+
+    let mut expected = occurrence_json;
+    expected["timestamp"] = serde_json::json!("2024-01-01T00:00:00.120Z");
+    assert_eq!(serde_json::to_value(&occurrence)?, expected);
+    Ok(())
+}
+
+#[test]
+fn legacy_timestamp_precision_and_order_are_preserved() -> Result<(), serde_json::Error> {
+    let inputs = [
+        "-262143-01-01T00:00:00Z",
+        "1969-12-31T23:59:59.999999999Z",
+        "1970-01-01T00:00:00Z",
+        "2024-01-01T00:00:00.120Z",
+        "2024-01-01T00:00:00.120001Z",
+        "2024-01-01T00:00:00.120001001Z",
+        "2024-01-01T00:00:59.999999999Z",
+        "2024-01-01T00:00:60.001Z",
+        "2024-01-01T00:01:00Z",
+        "+10000-01-01T00:00:00Z",
+        "+262142-12-31T23:59:59.999999999Z",
+    ];
+    let mut previous = None;
+    for input in inputs {
+        let json = serde_json::json!(input);
+        let timestamp: Timestamp = serde_json::from_value(json.clone())?;
+        assert_eq!(serde_json::to_value(timestamp)?, json);
+        if let Some(previous) = previous {
+            assert!(previous < timestamp);
+        }
+        previous = Some(timestamp);
+    }
+    Ok(())
+}
+
+#[test]
+fn date_range_timestamps_normalize_utc_offsets() -> Result<(), serde_json::Error> {
+    let filter_json = serde_json::json!({
+        "date_range": ["2024-01-01T02:00:00-0100", "2024-01-01T03:00:00.123456789Z"]
+    });
+    let filter: StringFilter = serde_json::from_value(filter_json)?;
+    assert_eq!(
+        serde_json::to_value(filter)?["date_range"],
+        serde_json::json!(["2024-01-01T03:00:00Z", "2024-01-01T03:00:00.123456789Z"])
+    );
+    assert!("2024-01-01T03:00:00".parse::<Timestamp>().is_err());
+    assert!("2024-02-30T03:00:00Z".parse::<Timestamp>().is_err());
+    assert!("2024-01-01T03:00:00+24:00".parse::<Timestamp>().is_err());
+    assert_eq!(
+        "2024-01-01T02:30:00-00:30"
+            .parse::<Timestamp>()
+            .unwrap()
+            .to_string(),
+        "2024-01-01T03:00:00Z"
+    );
+    Ok(())
+}
+
+#[test]
+fn timestamp_components_distinguish_pre_epoch_and_leap_seconds() {
+    let pre_epoch = "1969-12-31T23:59:59.500Z".parse::<Timestamp>().unwrap();
+    assert_eq!(pre_epoch.unix_timestamp(), -1);
+    assert_eq!(pre_epoch.nanosecond(), 500_000_000);
+    assert!(!pre_epoch.is_leap_second());
+    let leap = "2024-01-01T00:00:60.123Z".parse::<Timestamp>().unwrap();
+    let nominal = "2024-01-01T00:00:59Z".parse::<Timestamp>().unwrap();
+    assert_eq!(leap.unix_timestamp(), nominal.unix_timestamp());
+    assert_eq!(leap.nanosecond(), 123_000_000);
+    assert!(leap.is_leap_second());
+}
+
+#[test]
 fn explicit_timestamps_contexts_and_ingestion_retention_are_consistent() -> AnalysisResult<()> {
     let config = AnalysisConfig {
         max_occurrences_per_string: 2,
@@ -309,9 +390,9 @@ fn explicit_timestamps_contexts_and_ingestion_retention_are_consistent() -> Anal
         ..AnalysisConfig::default()
     };
     let tracker = StringTracker::with_config(config)?;
-    let early = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-    let middle = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
-    let late = Utc.with_ymd_and_hms(2024, 1, 3, 0, 0, 0).unwrap();
+    let early = "2024-01-01T00:00:00Z".parse().unwrap();
+    let middle = "2024-01-02T00:00:00Z".parse().unwrap();
+    let late = "2024-01-03T00:00:00Z".parse().unwrap();
 
     tracker.track_occurrence(
         "shared",
