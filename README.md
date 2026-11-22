@@ -33,10 +33,10 @@ validation by a security analyst.
 
 ```toml
 [dependencies]
-threatflux-string-analysis = "0.2.3"
+threatflux-string-analysis = "1.0"
 ```
 
-Version 0.2.3 requires Rust 1.95.0 or newer.
+Version 1.0 requires Rust 1.95.0 or newer.
 
 ## Quick start
 
@@ -169,8 +169,8 @@ semantics.
   pattern and indicator semantics
 - [File-scanner integration](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/FILE_SCANNER.md) —
   integration boundaries
-- [Migrating to 0.2](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/MIGRATING_TO_0.2.md) —
-  0.1 upgrade guide
+- [Migrating timestamps to 1.0](https://github.com/ThreatFlux/threatflux-string-analysis/blob/main/docs/BEHAVIOR.md#ingestion-and-timestamps) —
+  update callers to the `Timestamp` API
 
 ## Development and security
 
