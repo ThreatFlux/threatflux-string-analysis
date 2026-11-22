@@ -4,8 +4,9 @@ Version 0.2 makes invalid configuration and query input visible, enforces
 deterministic bounded retention, and clarifies the difference between
 informational categories and suspicious heuristics.
 
-Because this crate is pre-1.0, the `0.1` to `0.2` minor-version change is a
-SemVer compatibility boundary.
+The `0.1` to `0.2` upgrade was a pre-1.0 SemVer compatibility boundary.
+For the current release, use the [install instructions](../README.md#install)
+and the [1.0 timestamp migration guidance](BEHAVIOR.md#ingestion-and-timestamps).
 
 ## Dependency
 

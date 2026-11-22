@@ -16,12 +16,14 @@ manifest and wrapper before changing either public API.
 
 | String-analysis line | Integration status                                                   |
 | -------------------- | -------------------------------------------------------------------- |
+| `1.x`                | `Timestamp` API with compatible UTC serialization                    |
 | `0.2.x`              | Fallible statistics and validated bounded configuration              |
 | `0.1.x`              | Legacy constructor, batch-ingestion, and statistics call conventions |
 
-Version 0.2 is a compatibility boundary because this crate is still pre-1.0.
-Follow [`MIGRATING_TO_0.2.md`](MIGRATING_TO_0.2.md) when updating file-scanner
-or another existing consumer.
+Use the dependency from the [install instructions](../README.md#install)
+for new integrations. When moving an existing consumer to 1.0, follow the
+[timestamp migration guidance](BEHAVIOR.md#ingestion-and-timestamps).
+The [0.2 migration guide](MIGRATING_TO_0.2.md) covers changes from 0.1.
 
 ## Wrapper responsibilities
 
