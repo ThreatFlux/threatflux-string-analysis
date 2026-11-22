@@ -39,13 +39,89 @@ permissions:
   contents: read
 
 jobs:
-  release:
+  verify-source:
+    name: Validate release source
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Verify version and reviewed release proposal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+          CURRENT_REF: ${{ github.ref }}
+          RELEASE_BRANCH: automation/release
+          RELEASE_AUTHOR: ${{ vars.TF_AUTOMATION_APP_ID != '' && 'threatflux-automation[bot]' || 'github-actions[bot]' }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == workflow_dispatch && "$DRY_RUN" != true && "$CURRENT_REF" != refs/heads/main ]]; then
+            echo "A manual release must target main." >&2
+            exit 1
+          fi
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          manifest_version() {
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/$GITHUB_REPOSITORY/contents/Cargo.toml?ref=$1" |
+              python3 -I -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["package"]["version"])'
+          }
+          version="$(manifest_version "$SOURCE_SHA")"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+
+          if [[ "$DRY_RUN" == true ]]; then
+            exit 0
+          fi
+          ref="refs/tags/v$version"
+          tags="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v$version")"
+          if jq -e --arg ref "$ref" 'any(.[]; .ref == $ref)' <<< "$tags" >/dev/null; then
+            exit 0
+          fi
+
+          # An untagged manifest can enter the reusable workflow's tag phase.
+          # Require the exact reviewed automation merge before enabling it.
+          pulls="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA/pulls")"
+          proposal_head="$(jq -er --arg sha "$SOURCE_SHA" --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$RELEASE_BRANCH" --arg author "$RELEASE_AUTHOR" --arg tag "v$version" '
+              [.[][] | select(.merged_at != null and .merge_commit_sha == $sha
+                and .base.ref == "main" and .base.repo.full_name == $repo
+                and .head.ref == $branch and .head.repo.full_name == $repo
+                and .user.login == $author and .title == ("chore(release): " + $tag))]
+              | if length == 1 then .[0].head.sha else empty end
+            ' <<< "$pulls")" || {
+              echo "Refusing to tag v$version: source is not the exact merge of its automation release proposal." >&2
+              exit 1
+            }
+          [[ "$proposal_head" =~ ^[0-9a-f]{40}$ ]]
+          proposal_commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$proposal_head")"
+          merge_commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA")"
+          jq -e '.commit.verification.verified == true' <<< "$proposal_commit" >/dev/null
+          jq -e '.commit.verification.verified == true' <<< "$merge_commit" >/dev/null
+          proposal_parent="$(jq -er '.parents[0].sha' <<< "$proposal_commit")"
+          merge_parent="$(jq -er '.parents[0].sha' <<< "$merge_commit")"
+          proposal_tree="$(jq -er '.commit.tree.sha' <<< "$proposal_commit")"
+          merge_tree="$(jq -er '.commit.tree.sha' <<< "$merge_commit")"
+          if [[ "$proposal_parent" != "$merge_parent" || "$proposal_tree" != "$merge_tree" ]]; then
+            echo "Refusing to tag v$version: the merged tree or base differs from the reviewed release proposal." >&2
+            exit 1
+          fi
+          [[ "$merge_parent" =~ ^[0-9a-f]{40}$ ]]
+          proposal_version="$(manifest_version "$proposal_head")"
+          parent_version="$(manifest_version "$merge_parent")"
+          if [[ "$proposal_version" != "$version" || "$parent_version" == "$version" ]]; then
+            echo "Refusing to tag v$version: its manifest version was not introduced by the reviewed release proposal." >&2
+            exit 1
+          fi
+
+  release:
+    needs: verify-source
     # The reusable release job requests these scopes for GITHUB_TOKEN. With
     # the GitHub App configured, the release commit, tag and GitHub Release
     # are written with a repository-scoped App token instead.
@@ -62,6 +138,7 @@ jobs:
       # Version bumps go through the same owner review and CI as other changes.
       # Once a bump merges, the App's tag push starts release.yml.
       create-pr: true
+      release-branch: automation/release
       dispatch-workflows: release.yml
       github-app-id: ${{ vars.TF_AUTOMATION_APP_ID }}
     secrets:

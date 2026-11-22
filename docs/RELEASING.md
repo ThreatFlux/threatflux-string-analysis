@@ -83,9 +83,12 @@ use.
 
 3. Review and merge the release pull request using the normal owner approval
    process. Once CI and Security pass on its merge commit, `auto-release.yml`
-   tags the manifest version. A maintainer can also create an annotated
-   `vX.Y.Z` or `vX.Y.Z-prerelease` tag from a verified `main` commit whose
-   manifest already declares that version. Release tags with SemVer build
+   tags the manifest version. Automatic tagging verifies that the merge
+   introduced the version from the signed `automation/release` proposal and
+   retained its reviewed base and tree. If another commit reaches `main`
+   before tagging, automatic tagging stops. A maintainer can create an
+   annotated `vX.Y.Z` or `vX.Y.Z-prerelease` tag from a verified `main` commit
+   whose manifest already declares that version. Release tags with SemVer build
    metadata (`+...`) are not supported.
 4. The tag starts `release.yml`, which validates its provenance, builds and
    tests every target, and publishes the crate. A version that is already on
